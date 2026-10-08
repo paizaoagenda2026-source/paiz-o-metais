@@ -37,10 +37,10 @@
   .top-btn:hover{background:rgba(255,255,255,.16)}
   .top-btn:disabled{opacity:.6;cursor:wait}
   .tabs{background:var(--card);border-bottom:1px solid var(--line);padding:0 22px;
-    display:flex;gap:4px;position:sticky;top:64px;z-index:30}
+    display:flex;gap:4px;position:sticky;top:64px;z-index:30;overflow-x:auto}
   .tab{background:none;border:none;padding:14px 18px;font-size:14px;font-weight:600;color:var(--txt-2);
     cursor:pointer;border-bottom:3px solid transparent;transition:.18s;font-family:inherit;
-    display:flex;align-items:center;gap:8px}
+    display:flex;align-items:center;gap:8px;white-space:nowrap}
   .tab:hover{color:var(--navy)}
   .tab.active{color:var(--navy);border-bottom-color:var(--amber)}
   .tab .badge{background:#eef2f7;color:var(--steel);font-size:11px;padding:1px 7px;border-radius:20px;font-weight:700}
@@ -89,6 +89,16 @@
   .thumb::after{content:"";position:absolute;inset:0;opacity:.3;
     background:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-6 6"/></svg>') center/22px no-repeat}
   .thumb img{width:100%;height:100%;object-fit:cover;position:relative;z-index:1;display:block}
+  .thumb:has(img)::before{
+    content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+    background:url('logo.png') center/72% no-repeat;
+    opacity:.45;
+  }
+  .pesq-card .img:has(img)::before{
+    content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+    background:url('logo.png') center/auto 68% no-repeat;
+    opacity:.4;
+  }
   .code-chip{display:inline-block;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12px;
     background:#f1f5f9;border:1px solid #e2e8f0;color:#243447;padding:2px 7px;border-radius:6px;
     margin:1px 3px 1px 0;white-space:nowrap}
@@ -173,9 +183,6 @@
     background:#fef3c7;border:1px solid #fcd34d;color:var(--amber-d);border-radius:20px;
     padding:1px 7px;margin-left:6px;vertical-align:middle}
 
-  /* =========================================================
-     ABA PESQUISA (layout de catálogo com cards)
-     ========================================================= */
   #view-pesquisa .pesq-container{max-width:980px;margin:0 auto}
   .pesq-brand{background:#fff;border:1px solid var(--line);border-radius:var(--radius);
     padding:16px 18px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow)}
@@ -249,9 +256,6 @@
     .pesq-logo-text{font-size:22px}
   }
 
-  /* =========================================================
-     TELA DE LOGIN
-     ========================================================= */
   .login-overlay{position:fixed;inset:0;z-index:9999;
     background:linear-gradient(135deg,#0f2338 0%,#17324e 50%,#1d3f61 100%);
     display:flex;align-items:center;justify-content:center;padding:20px;
@@ -296,7 +300,6 @@
   .login-foot{text-align:center;font-size:10.5px;color:#93a2b3;
     margin-top:20px;letter-spacing:.5px}
 
-  /* LOGO DE FUNDO DO LOGIN (puxa automaticamente "logo.png") */
   .login-bg-logo{
     position:absolute;
     top:50%; left:50%;
@@ -312,7 +315,6 @@
     filter:drop-shadow(0 12px 40px rgba(0,0,0,.4));
   }
 
-  /* MODAL DE RECONHECIMENTO FACIAL */
   .face-overlay{position:fixed;inset:0;background:rgba(12,24,38,.88);
     backdrop-filter:blur(4px);z-index:10000;display:none;
     align-items:center;justify-content:center;padding:20px}
@@ -329,6 +331,9 @@
   .face-guide{position:absolute;inset:0;pointer-events:none;display:grid;place-items:center}
   .face-guide::before{content:"";width:58%;aspect-ratio:3/4;
     border:2px dashed rgba(255,255,255,.55);border-radius:50%}
+  #novoImgOverlay .face-guide::before{
+    width:82%;aspect-ratio:4/3;border-radius:12px;
+  }
   .face-status{font-size:13.5px;font-weight:600;color:#0f2338;
     margin-bottom:12px;min-height:20px}
   .face-progress{display:flex;justify-content:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
@@ -344,9 +349,6 @@
 
   @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
 
-  /* =========================================================
-     ABA CADASTRO
-     ========================================================= */
   #view-cadastro .form-body{padding:18px}
   #view-cadastro .form-body .field{margin-bottom:14px}
   #view-cadastro .selfie-box{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -361,9 +363,6 @@
   #view-cadastro .cad-user-cell{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12px}
   #view-cadastro .cad-user-cell .code-chip{margin-bottom:2px}
 
-  /* =========================================================
-     ABA USUÁRIOS
-     ========================================================= */
   #view-usuarios .form-body{padding:18px}
   #view-usuarios .form-body .field{margin-bottom:14px}
   #view-usuarios .selfie-box{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -392,6 +391,29 @@
   .usr-perm-box label{display:flex;gap:6px;align-items:center;font-size:13.5px;
     color:var(--txt);cursor:pointer;font-weight:500;user-select:none}
   .usr-perm-box input[type="checkbox"]{width:16px;height:16px;cursor:pointer;accent-color:var(--amber)}
+
+  /* =========================================================
+     ABA NOVO — Cadastro rápido de lançamentos
+     ========================================================= */
+  #view-novo .form-body{padding:18px}
+  #view-novo .form-body .field{margin-bottom:14px}
+  #view-novo .selfie-box{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  #novoImgPreview{width:170px;height:130px;border-radius:12px;object-fit:cover;
+    border:2px solid var(--line);display:none;background:#f4f6f9}
+  #view-novo .form-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  #view-novo .grid2 > .field{margin-bottom:0}
+  #view-novo .pedra-block{
+    background:#fafbfc;border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px 4px;margin-top:4px;
+  }
+  #view-novo .pedra-block .sec-title{margin-bottom:12px}
+  #view-novo .pedra-block .grid2{gap:14px}
+  #view-novo .pedra-block .field{margin-bottom:14px}
+  #view-novo .pedra-opcional{
+    text-transform:none;font-weight:400;color:#93a2b3;
+    font-size:11px;letter-spacing:0;margin-left:6px;
+  }
+  #novoRefHint{font-weight:600;color:#0a8f4a}
 </style>
 </head>
 <body>
@@ -513,6 +535,25 @@
   </div>
 </div>
 
+<!-- ============================================================
+     MODAL DE FOTO DA PEÇA (ABA NOVO)
+     ============================================================ -->
+<div class="face-overlay" id="novoImgOverlay">
+  <div class="face-card">
+    <h2>Foto da Peça</h2>
+    <p>Posicione a peça no centro do quadro e clique em Capturar.</p>
+    <div class="face-video-wrap">
+      <video id="novoImgVideo" autoplay muted playsinline></video>
+      <div class="face-guide"></div>
+    </div>
+    <div class="face-status" id="novoImgStatus">Iniciando câmera...</div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button type="button" class="login-btn face" id="novoImgCaptureBtn" style="max-width:200px;margin-top:0">📸 Capturar</button>
+      <button type="button" class="login-btn face-cancel" id="novoImgCancelBtn">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <header class="topbar">
   <div class="brand">
     <div class="mark">PM</div>
@@ -545,6 +586,7 @@
   <button class="tab" data-tab="catalisador">
     Catalisador <span class="badge" id="tabCount">0</span>
   </button>
+  <button class="tab" data-tab="novo">Novo</button>
   <button class="tab active" data-tab="pesquisa">Pesquisa</button>
   <button class="tab" data-tab="cadastro">Cadastro</button>
   <button class="tab" data-tab="cotacoes">Cotações &amp; Parâmetros</button>
@@ -597,6 +639,90 @@
   </section>
 </main>
 
+<!-- ============================================================
+     ABA NOVO — Cadastro rápido de lançamentos
+     ============================================================ -->
+<main class="wrap hidden" id="view-novo">
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Novo Lançamento</h2>
+      <span class="sub" id="novoFormSub">Preencha os dados e clique em Salvar — o lançamento vai para a aba Catalisador</span>
+    </div>
+    <div class="form-body">
+      <div class="grid2">
+        <div class="field">
+          <label for="novoRef">Referência interna</label>
+          <input type="text" id="novoRef" inputmode="numeric" placeholder="Deixe vazio para usar a sugerida" autocomplete="off">
+          <div class="hint" id="novoRefHint">Próxima ref. sugerida: —</div>
+        </div>
+        <div class="field">
+          <label for="novoImg">ID da imagem (Drive)</label>
+          <input type="text" id="novoImg" placeholder="Ex.: 1AbC..." autocomplete="off" spellcheck="false">
+          <div class="hint">Se você capturar ou escolher uma imagem abaixo, ela substitui este ID.</div>
+        </div>
+        <div class="field">
+          <label for="novoMarca">Marca</label>
+          <input type="text" id="novoMarca" autocomplete="off" placeholder="Ex.: FIAT">
+        </div>
+        <div class="field">
+          <label for="novoModelo">Modelo</label>
+          <input type="text" id="novoModelo" autocomplete="off" placeholder="Ex.: PALIO 1.5">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="novoCod">Códigos separados (por ";")</label>
+        <input type="text" id="novoCod" placeholder="Ex.: 208027923R;C555;112701536000" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="pedra-block">
+        <div class="sec-title">Pedra 1</div>
+        <div class="grid2">
+          <div class="field"><label for="novoPeso1">Peso 1 (kg)</label><input type="number" step="0.001" min="0" id="novoPeso1"></div>
+          <div class="field"><label for="novoPd1">Teor Pd 1 (g/kg)</label><input type="number" step="0.001" min="0" id="novoPd1"></div>
+          <div class="field"><label for="novoPt1">Teor Pt 1 (g/kg)</label><input type="number" step="0.001" min="0" id="novoPt1"></div>
+          <div class="field"><label for="novoRh1">Teor Rh 1 (g/kg)</label><input type="number" step="0.001" min="0" id="novoRh1"></div>
+        </div>
+      </div>
+
+      <div class="pedra-block">
+        <div class="sec-title">Pedra 2 <span class="pedra-opcional">(opcional — será somada à Pedra 1)</span></div>
+        <div class="grid2">
+          <div class="field"><label for="novoPeso2">Peso 2 (kg)</label><input type="number" step="0.001" min="0" id="novoPeso2"></div>
+          <div class="field"><label for="novoPd2">Teor Pd 2 (g/kg)</label><input type="number" step="0.001" min="0" id="novoPd2"></div>
+          <div class="field"><label for="novoPt2">Teor Pt 2 (g/kg)</label><input type="number" step="0.001" min="0" id="novoPt2"></div>
+          <div class="field"><label for="novoRh2">Teor Rh 2 (g/kg)</label><input type="number" step="0.001" min="0" id="novoRh2"></div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:16px">
+        <label>Imagem da peça</label>
+        <div class="selfie-box">
+          <button type="button" class="btn" id="novoFotoBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Tirar Foto
+          </button>
+          <button type="button" class="btn" id="novoArquivoBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Buscar no PC
+          </button>
+          <input type="file" id="novoFileInput" accept="image/*" style="display:none">
+          <img id="novoImgPreview" alt="Pré-visualização da imagem da peça">
+          <button type="button" class="btn hidden" id="novoImgRemove">Remover imagem</button>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn primary" id="novoSalvarBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Salvar na aba Catalisador
+        </button>
+        <button type="button" class="btn" id="novoLimparBtn">Limpar campos</button>
+      </div>
+    </div>
+  </section>
+</main>
+
 <main class="wrap" id="view-pesquisa">
   <div class="pesq-container">
     <div class="pesq-brand">
@@ -620,9 +746,6 @@
   </div>
 </main>
 
-<!-- ============================================================
-     ABA CADASTRO
-     ============================================================ -->
 <main class="wrap hidden" id="view-cadastro">
   <section class="panel">
     <div class="panel-head">
@@ -730,9 +853,6 @@
   </section>
 </main>
 
-<!-- ============================================================
-     ABA USUÁRIOS
-     ============================================================ -->
 <main class="wrap hidden" id="view-usuarios">
   <section class="panel">
     <div class="panel-head">
@@ -759,6 +879,7 @@
         <label>Permissões de acesso (abas liberadas)</label>
         <div class="usr-perm-box">
           <label><input type="checkbox" data-perm="catalisador" checked> Catalisador</label>
+          <label><input type="checkbox" data-perm="novo"> Novo</label>
           <label><input type="checkbox" data-perm="pesquisa" checked> Pesquisa</label>
           <label><input type="checkbox" data-perm="cadastro"> Cadastro</label>
           <label><input type="checkbox" data-perm="cotacoes"> Cotações</label>
@@ -2229,7 +2350,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 1826|1bHgkVb46IdGsI_WJxtoyZ1OljSiz3IGF|LIFAN|X60 (COLETOR)|VXHHGIV1.8LH;80223;130703|0.265|1.788|0.313|0.148
 1827|1JwsAfr6_tL336hnWA84G5aCWN2Y8COAD|FORD|FIESTA 1.6|6S555E211-BA|0.615|0.675|0|0.242
 1828|1dv0UinDAxiVy-JRfw6YPEQHiE-enl-ou|GM|SPIN 2°|24577841;914705467;CA13189GMA011199|0.345|0.723|0|0.13
-1829|1HHYVy9u2oy8dcirn0EuLrXFnA4JPc_Gm|VW|PASSAT|4A0131702CJ;4A0178M|1.96|3.706|0.276|0.281
+1829|1HHYVy9u2oy8dcirn0EuLrXFnA4JPc_Gm|VW|PASSAT|4A0131702CJ|4A0178M|1.96|3.706|0.276|0.281
 1830|1iN1B5sMGj6YvbbriYX6mRQ-r9HMPwRCv|JAGUAR|—|1YCA;6R835E212DA;1R0AA|0.405|2.364|0|0.262
 1833|1LW-6eGIFa-W3Jkpkat4jGxF4VWSj-jg9|LAND ROVER|—|BH425E212-BA;KAT106;D3C5A|1.115|1.083|2.445|0.016
 1834|1sl5iLg-Y0OsydVN8GOzG5y4UJFtdQTU2|VW|—|6R0131701-B;1K0178PA;6R025306F|0.815|2.427|0|0.174
@@ -2793,7 +2914,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 5137|1NJXB5p9saXLX2etowJffDxYAyIqa---b|ASIA|TOWNER ANTIGA (GRANDE)|—|0.345|1.248|0|0.191
 5138|1zvYFvJOHQA6K_2XiOgfQvqBiuAZiXQ_q|CHEROKEE|ANTIGA|52019482;14712|1.325|0.038|0.905|0.166
 5140|1n0HX9aUX_J3raINkDlH9csIri_DxQUDl|RENAULT|—|C217N;208029752R|0.235|11.708|0|0.437
-5141|1SY4rwfc1X46_Xa51Tx73BbcV4EjdMtPr|VW|SAVEIRO ALCOOL 2°|5X0131701R;5X0131703D|0.635|0.108|0.19|0.19
+5141|1SY4rwfc1X46_Xa51Tx73BbcV4EjdMtPr|VW|SAVEIRO ALCOOL 2°|5X0131701R|5X0131703D|0.635|0.108|0.19|0.19
 5143|1WGn_z2u680huiYGWB9Cu5PkumJxsERFC|VW|GOLF|1J0131701JP|1.28|1.478|0|0.164
 5144|1YUiMSQYECNM7pTTvzQPJNot6EJUobjDN|VW|GOL GV|030178FB;090131703N|0.63|2.658|0|0.206
 5145|102fiiM73b-OJPHcJwxTuhjCudYO7aus9|BMW|—|7510971;ND23;534341|0.37|6.211|0|0.459
@@ -3038,9 +3159,15 @@ const esc = s => String(s ?? '')
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
   .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
+/* Aceita tanto um ID do Drive quanto um data URL (foto capturada/PC) */
+function imgSrc(img, size){
+  if(!img) return '';
+  if(typeof img === 'string' && img.startsWith('data:')) return img;
+  return `https://drive.google.com/thumbnail?id=${img}&sz=${size || 'w300'}`;
+}
 function thumbHTML(img, size){
   if(!img) return `<div class="thumb" style="${size?`width:${size}px;height:${size}px`:''}"></div>`;
-  const url = `https://drive.google.com/thumbnail?id=${img}&sz=w300`;
+  const url = imgSrc(img, 'w300');
   return `<div class="thumb" style="${size?`width:${size}px;height:${size}px`:''}">
     <img loading="lazy" src="${url}" alt="" onerror="this.style.display='none'">
   </div>`;
@@ -3404,6 +3531,8 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.getElementById('view-cotacoes').classList.toggle('hidden', t !== 'cotacoes');
     document.getElementById('view-pesquisa').classList.toggle('hidden', t !== 'pesquisa');
     document.getElementById('view-cadastro').classList.toggle('hidden', t !== 'cadastro');
+    const vnovo = document.getElementById('view-novo');
+    if(vnovo) vnovo.classList.toggle('hidden', t !== 'novo');
     const vusr = document.getElementById('view-usuarios');
     if(vusr) vusr.classList.toggle('hidden', t !== 'usuarios');
   });
@@ -3462,7 +3591,7 @@ function pesqCardHTML(it){
   const cod = (it.cod && it.cod[0]) || it.ref || '—';
   const marcaModelo = [it.marca, it.modelo && it.modelo !== '—' ? it.modelo : ''].filter(Boolean).join(' / ');
   const img = it.img
-    ? `<img loading="lazy" src="https://drive.google.com/thumbnail?id=${encodeURIComponent(it.img)}&sz=w400" alt="" onerror="this.style.display='none'">`
+    ? `<img loading="lazy" src="${imgSrc(it.img, 'w400')}" alt="" onerror="this.style.display='none'">`
     : '';
   const precoHTML = c.rspeca > 0
     ? `<span class="price">R$ ${fmtNum(c.rspeca,2)}</span>`
@@ -3705,7 +3834,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
   'use strict';
 
   const LS_KEY_USERS = 'paizao_usuarios';
-  const ALL_TABS = ['catalisador','pesquisa','cadastro','cotacoes','usuarios'];
+  const ALL_TABS = ['catalisador','novo','pesquisa','cadastro','cotacoes','usuarios'];
 
   const DEFAULT_SERGIO = {
     pass: '080888', role: 'admin', type: 'ADM', label: 'Administrador',
@@ -3733,6 +3862,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
       u.permissions = u.type === 'ADM'
         ? ALL_TABS.slice()
         : (u.type === 'COMPRADOR' ? ['catalisador','pesquisa','cotacoes'] : ['catalisador','pesquisa']);
+    }
+    /* Migração: garante que ADMs tenham acesso à nova aba "novo" */
+    if(u.type === 'ADM' && Array.isArray(u.permissions) && !u.permissions.includes('novo')){
+      u.permissions.push('novo');
     }
     if(!u.label) u.label = u.type;
     if(!('selfie' in u)) u.selfie = '';
@@ -3825,8 +3958,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       if (allowed.includes(tab.dataset.tab)) tab.classList.remove('hidden');
       else tab.classList.add('hidden');
     });
-    // Sempre abrir na aba Pesquisa quando permitida (padrão solicitado).
-    // Se não permitida, cai para a primeira aba permitida na ordem padrão.
     const target = allowed.includes('pesquisa')
       ? 'pesquisa'
       : ALL_TABS.find(t => allowed.includes(t));
@@ -3899,9 +4030,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }, 2600);
   }
 
-  /* ============================================================
-     COMPARAÇÃO DE FACES
-     ============================================================ */
   function captureFaceFrame(){
     const v = faceVideo;
     const w = v.videoWidth || 640;
@@ -3966,9 +4094,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     return bestUser ? { user: bestUser, score: bestScore } : null;
   }
 
-  /* ============================================================
-     RECONHECIMENTO FACIAL
-     ============================================================ */
   let faceScriptsLoaded = false;
   function loadFaceScripts(){
     return new Promise((resolve, reject) => {
@@ -4759,7 +4884,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
   usrTipo.addEventListener('change', () => {
     const t = usrTipo.value;
     const defaults = {
-      ADM: ['catalisador','pesquisa','cadastro','cotacoes','usuarios'],
+      ADM: ['catalisador','novo','pesquisa','cadastro','cotacoes','usuarios'],
       COMPRADOR: ['catalisador','pesquisa','cotacoes'],
       AGREGADO: ['catalisador','pesquisa'],
       CLIENTE: ['catalisador','pesquisa']
@@ -4850,6 +4975,276 @@ document.getElementById('btnCota').addEventListener('click', () => {
 </script>
 
 <!-- ============================================================
+     ABA NOVO — Cadastro rápido de lançamentos
+     - Campos: Referência, ID Imagem, Marca, Modelo, Códigos,
+       Peso1/Pd1/Pt1/Rh1, Peso2/Pd2/Pt2/Rh2
+     - Botões: Tirar Foto / Buscar no PC / Salvar na aba Catalisador
+     - Ao salvar: adiciona em DATA respeitando a sequência, sem
+       nunca sobrescrever um lançamento já existente.
+     ============================================================ -->
+<script>
+(function novoSistema(){
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+
+  const novoRef     = $('novoRef');
+  const novoImg     = $('novoImg');
+  const novoMarca   = $('novoMarca');
+  const novoModelo  = $('novoModelo');
+  const novoCod     = $('novoCod');
+  const novoPeso1   = $('novoPeso1');
+  const novoPd1     = $('novoPd1');
+  const novoPt1     = $('novoPt1');
+  const novoRh1     = $('novoRh1');
+  const novoPeso2   = $('novoPeso2');
+  const novoPd2     = $('novoPd2');
+  const novoPt2     = $('novoPt2');
+  const novoRh2     = $('novoRh2');
+  const novoImgPrev = $('novoImgPreview');
+  const novoImgRem  = $('novoImgRemove');
+  const novoFileIn  = $('novoFileInput');
+  const novoRefHint = $('novoRefHint');
+
+  /* Guarda a foto capturada ou escolhida como data URL.
+     Se estiver vazia, o campo "ID da imagem (Drive)" é usado. */
+  let fotoData = '';
+
+  /* ---------------------------------------------------------
+     Próxima referência sequencial (max+1). Nunca reaproveita.
+     --------------------------------------------------------- */
+  function nextRef(){
+    let max = 0;
+    for (const d of DATA){
+      const n = parseInt(String(d.ref), 10);
+      if (isFinite(n) && n > max) max = n;
+    }
+    return String(max + 1);
+  }
+
+  function updateRefHint(){
+    const nx = nextRef();
+    novoRefHint.innerHTML = 'Próxima ref. sugerida: <b>' + nx + '</b>';
+    novoRef.placeholder = 'Deixe vazio para usar ' + nx;
+  }
+
+  /* ---------------------------------------------------------
+     Preview de imagem
+     --------------------------------------------------------- */
+  function setPreview(dataUrl){
+    fotoData = dataUrl || '';
+    if(fotoData){
+      novoImgPrev.src = fotoData;
+      novoImgPrev.style.display = 'block';
+      novoImgRem.classList.remove('hidden');
+    } else {
+      novoImgPrev.removeAttribute('src');
+      novoImgPrev.style.display = 'none';
+      novoImgRem.classList.add('hidden');
+    }
+  }
+
+  novoImgRem.addEventListener('click', () => setPreview(''));
+
+  /* ---------------------------------------------------------
+     Botão: Buscar no PC
+     --------------------------------------------------------- */
+  const novoArquivoBtn = $('novoArquivoBtn');
+  novoArquivoBtn.addEventListener('click', () => novoFileIn.click());
+  novoFileIn.addEventListener('change', e => {
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    if(!file.type.startsWith('image/')){
+      alert('Escolha um arquivo de imagem.');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try { setPreview(ev.target.result); }
+      catch(_){ alert('Não foi possível ler a imagem.'); }
+    };
+    reader.onerror = () => alert('Falha ao ler o arquivo.');
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  });
+
+  /* ---------------------------------------------------------
+     Botão: Tirar Foto (usa câmera) — modal
+     --------------------------------------------------------- */
+  const novoImgOverlay = $('novoImgOverlay');
+  const novoImgVideo   = $('novoImgVideo');
+  const novoImgStatus  = $('novoImgStatus');
+  const novoImgCapture = $('novoImgCaptureBtn');
+  const novoImgCancel  = $('novoImgCancelBtn');
+  let novoStream = null;
+
+  async function openNovoCamera(){
+    novoImgOverlay.classList.add('open');
+    novoImgStatus.textContent = 'Solicitando acesso à câmera...';
+    try {
+      novoStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: 640, height: 480 },
+        audio: false
+      });
+      novoImgVideo.srcObject = novoStream;
+      try { await novoImgVideo.play(); } catch(_){}
+      novoImgStatus.textContent = 'Posicione a peça e clique em Capturar.';
+    } catch(err){
+      /* Fallback para câmera frontal se traseira falhar */
+      try {
+        novoStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: 640, height: 480 },
+          audio: false
+        });
+        novoImgVideo.srcObject = novoStream;
+        try { await novoImgVideo.play(); } catch(_){}
+        novoImgStatus.textContent = 'Posicione a peça e clique em Capturar.';
+      } catch(err2){
+        novoImgStatus.textContent = 'Não foi possível acessar a câmera. Verifique as permissões.';
+      }
+    }
+  }
+
+  function closeNovoCamera(){
+    if(novoStream){
+      try { novoStream.getTracks().forEach(t => t.stop()); } catch(_){}
+      novoStream = null;
+    }
+    try { novoImgVideo.srcObject = null; } catch(_){}
+    novoImgOverlay.classList.remove('open');
+  }
+
+  function capturarNovaFoto(){
+    if(!novoStream){ alert('Câmera não está ativa.'); return; }
+    const w = novoImgVideo.videoWidth || 640;
+    const h = novoImgVideo.videoHeight || 480;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(novoImgVideo, 0, 0, w, h);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    setPreview(dataUrl);
+    closeNovoCamera();
+  }
+
+  $('novoFotoBtn').addEventListener('click', openNovoCamera);
+  novoImgCapture.addEventListener('click', capturarNovaFoto);
+  novoImgCancel.addEventListener('click', closeNovoCamera);
+
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape' && novoImgOverlay.classList.contains('open')){
+      closeNovoCamera();
+    }
+  });
+
+  /* ---------------------------------------------------------
+     Limpar campos
+     --------------------------------------------------------- */
+  function limparCampos(){
+    novoRef.value    = '';
+    novoImg.value    = '';
+    novoMarca.value  = '';
+    novoModelo.value = '';
+    novoCod.value    = '';
+    novoPeso1.value  = '';
+    novoPd1.value    = '';
+    novoPt1.value    = '';
+    novoRh1.value    = '';
+    novoPeso2.value  = '';
+    novoPd2.value    = '';
+    novoPt2.value    = '';
+    novoRh2.value    = '';
+    setPreview('');
+    updateRefHint();
+  }
+  $('novoLimparBtn').addEventListener('click', limparCampos);
+
+  /* ---------------------------------------------------------
+     Salvar lançamento na aba Catalisador
+     - Usa a próxima ref. sequencial se o campo ficar vazio
+     - Bloqueia salvar se a ref. já existir
+     - Nunca sobrescreve lançamentos existentes
+     --------------------------------------------------------- */
+  function salvarNovo(){
+    const refInformada = novoRef.value.trim();
+    const refFinal = refInformada || nextRef();
+
+    /* Verifica se já existe uma ref igual */
+    const existente = DATA.find(d => String(d.ref) === String(refFinal));
+    if(existente){
+      alert(
+        'Já existe um lançamento com a referência #' + refFinal + '.\n\n' +
+        'Use outra referência ou deixe o campo em branco para usar a sugerida (' + nextRef() + ').'
+      );
+      novoRef.focus();
+      return;
+    }
+
+    const peso1 = parseFloat(novoPeso1.value);
+    if(!isFinite(peso1) || peso1 <= 0){
+      alert('Informe o peso da Pedra 1 (maior que zero).');
+      novoPeso1.focus();
+      return;
+    }
+
+    const num = v => { const x = parseFloat(v); return isFinite(x) && x >= 0 ? x : 0; };
+
+    const codigos = novoCod.value.split(';').map(s => s.trim()).filter(Boolean);
+
+    /* Imagem: foto capturada/escolhida tem prioridade sobre o ID do Drive */
+    let imgValue = fotoData ? fotoData : novoImg.value.trim();
+
+    const novo = {
+      ref:    String(refFinal),
+      img:    imgValue,
+      marca:  novoMarca.value.trim() || 'OUTROS',
+      modelo: novoModelo.value.trim() || '—',
+      cod:    codigos.length ? codigos : ['—'],
+      peso:   peso1,
+      pd:     num(novoPd1.value),
+      pt:     num(novoPt1.value),
+      rh:     num(novoRh1.value),
+      peso2:  num(novoPeso2.value),
+      pd2:    num(novoPd2.value),
+      pt2:    num(novoPt2.value),
+      rh2:    num(novoRh2.value)
+    };
+
+    /* Adiciona ao final do array — respeita a sequência existente
+       e nunca sobrescreve nada já cadastrado. */
+    DATA.push(novo);
+
+    /* Atualiza toda a interface */
+    try { refreshMarcaOptions(); } catch(_){}
+    try { render(); } catch(_){}
+    try { renderPesq(); } catch(_){}
+
+    const badge = document.getElementById('tabCount');
+    if(badge) badge.textContent = DATA.length;
+
+    alert(
+      '✅ Lançamento adicionado à aba Catalisador!\n\n' +
+      'Referência: #' + refFinal + '\n' +
+      (novo.marca && novo.marca !== 'OUTROS' ? 'Marca: ' + novo.marca + '\n' : '') +
+      (novo.modelo && novo.modelo !== '—' ? 'Modelo: ' + novo.modelo + '\n' : '') +
+      'Peso: ' + peso1 + ' kg'
+    );
+
+    limparCampos();
+  }
+  $('novoSalvarBtn').addEventListener('click', salvarNovo);
+
+  /* ---------------------------------------------------------
+     Init
+     --------------------------------------------------------- */
+  updateRefHint();
+  /* Atualiza a dica sempre que o usuário focar o campo ref */
+  novoRef.addEventListener('focus', updateRefHint);
+})();
+</script>
+
+<!-- ============================================================
      PWA — MANIFEST + INSTALAÇÃO COMO APP
      Botão "Instalar" aparece na tela de login E na topbar.
      Ambos somem automaticamente quando o app é instalado.
@@ -4858,7 +5253,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 (function pwaSetup(){
   'use strict';
 
-  // 1) Injeta o manifest dinamicamente (fallback se manifest.json não estiver acessível)
   try {
     const logoUrl = new URL('logo.png', location.href).href;
     const baseUrl = location.href.split('?')[0].split('#')[0];
@@ -4892,7 +5286,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     link.href = url;
   } catch(e){ /* silencioso */ }
 
-  // 2) Botões de instalação (topbar + tela de login)
   const btnTop   = document.getElementById('btnInstall');
   const btnLogin = document.getElementById('loginInstallBtn');
   if (!btnTop && !btnLogin) return;
@@ -4918,13 +5311,11 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if (btnLogin) btnLogin.style.display = 'flex';
   }
 
-  // Se já está instalado (rodando em modo app), esconde de vez
   if (isStandalone()){
     hideBoth();
     return;
   }
 
-  // Navegador sinaliza que o app é instalável
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
@@ -4945,7 +5336,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       deferredPrompt.prompt();
       await deferredPrompt.userChoice;
       deferredPrompt = null;
-      // Após a escolha do usuário, esconde ambos (some automaticamente)
       hideBoth();
     } catch(err){
       hideBoth();
@@ -4955,13 +5345,11 @@ document.getElementById('btnCota').addEventListener('click', () => {
   if (btnTop)   btnTop.addEventListener('click', triggerInstall);
   if (btnLogin) btnLogin.addEventListener('click', triggerInstall);
 
-  // App foi instalado → esconde permanentemente
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
     hideBoth();
   });
 
-  // Reforço: se a página mudar para modo standalone (instalou agora), esconde
   if (window.matchMedia){
     try {
       const mq = window.matchMedia('(display-mode: standalone)');
