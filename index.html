@@ -414,6 +414,22 @@
     font-size:11px;letter-spacing:0;margin-left:6px;
   }
   #novoRefHint{font-weight:600;color:#0a8f4a}
+
+  /* =========================================================
+     LOGOS — substituição do símbolo "PM" pelo logo.png
+     ========================================================= */
+  .brand .brand-logo{
+    width:44px;height:44px;object-fit:contain;display:block;flex-shrink:0;
+    filter:drop-shadow(0 3px 10px rgba(245,158,11,.4));
+  }
+  .pesq-logo-img{
+    width:56px;height:56px;object-fit:contain;display:block;flex-shrink:0;
+    filter:drop-shadow(0 4px 12px rgba(10,143,74,.25));
+  }
+  .login-mark-img{
+    width:90px;height:90px;object-fit:contain;margin:0 auto 14px;display:block;
+    filter:drop-shadow(0 6px 20px rgba(245,158,11,.35));
+  }
 </style>
 </head>
 <body>
@@ -425,7 +441,7 @@
   <img src="logo.png" alt="" class="login-bg-logo" onerror="this.style.display='none'">
   <div class="login-card">
     <div class="login-brand">
-      <div class="login-mark">PM</div>
+      <img src="logo.png" alt="Paizão Metais" class="login-mark-img" onerror="this.outerHTML='<div class=&quot;login-mark&quot;>PM</div>'">
       <h1>PAIZÃO METAIS</h1>
       <p>Acesso Restrito</p>
     </div>
@@ -556,7 +572,7 @@
 
 <header class="topbar">
   <div class="brand">
-    <div class="mark">PM</div>
+    <img src="logo.png" alt="Paizão Metais" class="brand-logo" onerror="this.outerHTML='<div class=&quot;mark&quot;>PM</div>'">
     <div>PAIZÃO METAIS<small>Consulta Técnica de Catalisadores</small></div>
   </div>
   <div class="spacer"></div>
@@ -727,7 +743,7 @@
   <div class="pesq-container">
     <div class="pesq-brand">
       <div class="pesq-logo">
-        <div class="pesq-logo-mark">PM</div>
+        <img src="logo.png" alt="Paizão Metais" class="pesq-logo-img" onerror="this.outerHTML='<div class=&quot;pesq-logo-mark&quot;>PM</div>'">
         <div class="pesq-logo-text"><span>Paizão</span><b>Metais</b></div>
       </div>
     </div>
@@ -2389,7 +2405,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 1871|1TnhMrk2OlBW7RYZI2614NDz7mGUJ3j-_|FORD|COURIER 1.6|2N21-5E211-DA;1289536;R64JA|0.46|0.035|0.286|0.245
 1872|1MDIHQuBTL1t_VxXTLnT3EHvyRD_vFotX|FORD|COURIER 1.6|2S655E211-EA;1158470|0.5|0.032|0.189|0.078
 1874|1t7tt-SXdUKVSEBgfOqrpwK7DADz5eXlz|VW|SANTANA ALCOOL 1°|5X0131701L|0.585|0.045|0.309|0.119
-1875|1yXxyntHdXq97YeUeeT4dpKoebNToWiwG|VW|—|8J0131701D;8J0166AA;80601303|0.445|7.881|0|0.406
+1875|1yXxyntHdXq97YeUeeT4dpKoebNToWiwG|VW|—|8J0131701D|8J0166AA;80601303|0.445|7.881|0|0.406
 1876||FORD|FIESTA 1.6|6S555E211-BA|0.615|0.684|0|0.211
 1877|13kjU6Z5GZO9XuNpFaYIsZZiLPbS1GDC1|FORD|RANGER C/ FLEX|DB39-5E212-CB;AB39-5F297-PC|0.89|0.761|0|0.115
 1878|1qxWcLT9lh6V9_KyrIMMUUD1fuT8Byeyr|VOLVO|COLETOR|30750565;BQ7QA;2448616600|0.345|6.48|0|0.511
@@ -2426,7 +2442,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 1914|1fIR_FyvrGtjSrZDvUvwUttqP1wcxJW2L|FIAT|PALIO|46531944|1.055|1.689|0|0.211
 1915|1_JqMIDS-vwLM23qQKBjvcpLD1zsy2O2D|TOYOTA|—|F81|0.97|0.115|1.811|0.363
 1916|1xoRZ8gF2FntT7E8lpfFDHN5oNoSZQko9|RENAULT|FLUENCE|208020652R;C407|0.215|17.9|0|0.874
-1917|1gLYEe_P6NbcJMoiywfeAzEWPVovyRXWH|VW|JETTA 2°|1K0131701BT;1K0178GA|1.075|1.555|0|0.312
+1917|1gLYEe_P6NbcJMoiywfeAzEWPVovyRXWH|VW|JETTA 2°|1K0131701BT|1K0178GA|1.075|1.555|0|0.312
 1918|1_dyWO9JkjPLn_PlFa9rN1uQfa5olTnUA|CAMINHÃO|ANDRÉ|0216204M2-0191256;ASSN°5314329|0.9|0.166|1.209|0.015
 1919|1rPFIu-xU1qbtiDgsOnegYzBtKWThh3I9|FORD|TAURUS (QUADRUPLA)|2° GDE;MAN ART. L;M4254|0.38|0.365|0.681|0.021
 1920|1XJBFhZ-5-2hnB0yBRRkTFarFj93txcZa|SUBARU|DUPLA|FCA21;9X06ELSA|0.355|5.806|0.544|0.28
@@ -2789,7 +2805,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 2329|1WdRp-MYIUupyZxOVxpq7I8C9FreYITMt|VW|—|RZ02238004006;7L6131701M|1.025|0.203|4.193|0.009
 2330|1yKvNdS_WBS_vy1NedWWb91gDw2BCPnlo|OUTROS|—|BM4410/BYD;EBYDDNGKC;UMICORE|0.595|1.219|0|0.236
 2331|1Vx-l11ihUGqHo0YEvRmWVZ_wMw_VOcFg|VW|GOL GV|032131703L;032178CA|0.515|2.276|0|0.176
-2334||VW|—|RZ02228064122;7L6131690J|0.785|0.059|6.939|0.008
+2334||VW|—|RZ02228064122|7L6131690J|0.785|0.059|6.939|0.008
 2335||CHERRY|—|153AAS;153000136AA;ASS2BD|0.57|0.604|0|0.262
 2336||GM|SPIN|94730149;904565236|0.735|2.768|0|0.166
 2338|1Gl7eLZQ6xcLwkDTE0lrrFQF71APuJELS|VW|TURBO|8S131701B|8S0166AA;80744705|0.9|9.418|0|0.497
@@ -4976,11 +4992,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
 <!-- ============================================================
      ABA NOVO — Cadastro rápido de lançamentos
-     - Campos: Referência, ID Imagem, Marca, Modelo, Códigos,
-       Peso1/Pd1/Pt1/Rh1, Peso2/Pd2/Pt2/Rh2
-     - Botões: Tirar Foto / Buscar no PC / Salvar na aba Catalisador
-     - Ao salvar: adiciona em DATA respeitando a sequência, sem
-       nunca sobrescrever um lançamento já existente.
      ============================================================ -->
 <script>
 (function novoSistema(){
@@ -5006,13 +5017,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
   const novoFileIn  = $('novoFileInput');
   const novoRefHint = $('novoRefHint');
 
-  /* Guarda a foto capturada ou escolhida como data URL.
-     Se estiver vazia, o campo "ID da imagem (Drive)" é usado. */
   let fotoData = '';
 
-  /* ---------------------------------------------------------
-     Próxima referência sequencial (max+1). Nunca reaproveita.
-     --------------------------------------------------------- */
   function nextRef(){
     let max = 0;
     for (const d of DATA){
@@ -5028,9 +5034,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     novoRef.placeholder = 'Deixe vazio para usar ' + nx;
   }
 
-  /* ---------------------------------------------------------
-     Preview de imagem
-     --------------------------------------------------------- */
   function setPreview(dataUrl){
     fotoData = dataUrl || '';
     if(fotoData){
@@ -5046,9 +5049,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
   novoImgRem.addEventListener('click', () => setPreview(''));
 
-  /* ---------------------------------------------------------
-     Botão: Buscar no PC
-     --------------------------------------------------------- */
   const novoArquivoBtn = $('novoArquivoBtn');
   novoArquivoBtn.addEventListener('click', () => novoFileIn.click());
   novoFileIn.addEventListener('change', e => {
@@ -5069,9 +5069,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     e.target.value = '';
   });
 
-  /* ---------------------------------------------------------
-     Botão: Tirar Foto (usa câmera) — modal
-     --------------------------------------------------------- */
   const novoImgOverlay = $('novoImgOverlay');
   const novoImgVideo   = $('novoImgVideo');
   const novoImgStatus  = $('novoImgStatus');
@@ -5091,7 +5088,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       try { await novoImgVideo.play(); } catch(_){}
       novoImgStatus.textContent = 'Posicione a peça e clique em Capturar.';
     } catch(err){
-      /* Fallback para câmera frontal se traseira falhar */
       try {
         novoStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user', width: 640, height: 480 },
@@ -5138,9 +5134,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }
   });
 
-  /* ---------------------------------------------------------
-     Limpar campos
-     --------------------------------------------------------- */
   function limparCampos(){
     novoRef.value    = '';
     novoImg.value    = '';
@@ -5160,17 +5153,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
   }
   $('novoLimparBtn').addEventListener('click', limparCampos);
 
-  /* ---------------------------------------------------------
-     Salvar lançamento na aba Catalisador
-     - Usa a próxima ref. sequencial se o campo ficar vazio
-     - Bloqueia salvar se a ref. já existir
-     - Nunca sobrescreve lançamentos existentes
-     --------------------------------------------------------- */
   function salvarNovo(){
     const refInformada = novoRef.value.trim();
     const refFinal = refInformada || nextRef();
 
-    /* Verifica se já existe uma ref igual */
     const existente = DATA.find(d => String(d.ref) === String(refFinal));
     if(existente){
       alert(
@@ -5192,7 +5178,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     const codigos = novoCod.value.split(';').map(s => s.trim()).filter(Boolean);
 
-    /* Imagem: foto capturada/escolhida tem prioridade sobre o ID do Drive */
     let imgValue = fotoData ? fotoData : novoImg.value.trim();
 
     const novo = {
@@ -5211,11 +5196,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
       rh2:    num(novoRh2.value)
     };
 
-    /* Adiciona ao final do array — respeita a sequência existente
-       e nunca sobrescreve nada já cadastrado. */
     DATA.push(novo);
 
-    /* Atualiza toda a interface */
     try { refreshMarcaOptions(); } catch(_){}
     try { render(); } catch(_){}
     try { renderPesq(); } catch(_){}
@@ -5235,19 +5217,13 @@ document.getElementById('btnCota').addEventListener('click', () => {
   }
   $('novoSalvarBtn').addEventListener('click', salvarNovo);
 
-  /* ---------------------------------------------------------
-     Init
-     --------------------------------------------------------- */
   updateRefHint();
-  /* Atualiza a dica sempre que o usuário focar o campo ref */
   novoRef.addEventListener('focus', updateRefHint);
 })();
 </script>
 
 <!-- ============================================================
      PWA — MANIFEST + INSTALAÇÃO COMO APP
-     Botão "Instalar" aparece na tela de login E na topbar.
-     Ambos somem automaticamente quando o app é instalado.
      ============================================================ -->
 <script>
 (function pwaSetup(){
@@ -5358,6 +5334,38 @@ document.getElementById('btnCota').addEventListener('click', () => {
       else if (mq.addListener) mq.addListener(handler);
     } catch(_){}
   }
+})();
+</script>
+
+<!-- ============================================================
+     TELA CHEIA AUTOMÁTICA AO ABRIR O SISTEMA
+     ============================================================ -->
+<script>
+(function fullscreenOnLoad(){
+  'use strict';
+
+  function tryFS(){
+    const el = document.documentElement;
+    if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) return;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (!req) return;
+    try {
+      const r = req.call(el);
+      if (r && typeof r.catch === 'function') r.catch(function(){});
+    } catch(e){}
+  }
+
+  if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) return;
+
+  const once = function(){
+    tryFS();
+    document.removeEventListener('click', once);
+    document.removeEventListener('keydown', once);
+    document.removeEventListener('touchstart', once);
+  };
+  document.addEventListener('click', once, { once: true });
+  document.addEventListener('keydown', once, { once: true });
+  document.addEventListener('touchstart', once, { once: true });
 })();
 </script>
 
