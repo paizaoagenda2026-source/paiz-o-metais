@@ -542,16 +542,16 @@
 </header>
 
 <nav class="tabs">
-  <button class="tab active" data-tab="catalisador">
+  <button class="tab" data-tab="catalisador">
     Catalisador <span class="badge" id="tabCount">0</span>
   </button>
-  <button class="tab" data-tab="pesquisa">Pesquisa</button>
+  <button class="tab active" data-tab="pesquisa">Pesquisa</button>
   <button class="tab" data-tab="cadastro">Cadastro</button>
   <button class="tab" data-tab="cotacoes">Cotações &amp; Parâmetros</button>
   <button class="tab" data-tab="usuarios">Usuários</button>
 </nav>
 
-<main class="wrap" id="view-catalisador">
+<main class="wrap hidden" id="view-catalisador">
   <section class="panel">
     <div class="toolbar">
       <div class="search" id="searchBox">
@@ -597,7 +597,7 @@
   </section>
 </main>
 
-<main class="wrap hidden" id="view-pesquisa">
+<main class="wrap" id="view-pesquisa">
   <div class="pesq-container">
     <div class="pesq-brand">
       <div class="pesq-logo">
@@ -905,7 +905,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 59|1swcBGW3_fPSDmahO_xxD7SXDvkmhrVN0|CHERY|TIGGO (PRIMARIA)|QGC08;T111205010BD1KA|0.272|6.106|0|0.291
 60|1prLV8PqS8l5JGY59o8jecVCvDp4ZLRXw|VW / AUDI|A4|8D0131701DS;8D0178BC|0.258|5.889|0|0.311
 61|1cAXFyeTexR00fHp2pUX73-UqtMNpA-zN|CHERY|TIGGO (SECUNDARIA)|QGC08;T111205030BD1KA|0.742|0.553|0|0.112
-62|12PrObgiZCniZdkkjS182m4WHPLdWLQ21|TOYOTA|—|RB7|0.382|0.038|1.475|0.312
+62|12PrObgiZCniZdkkSJ182m4WHPLdWLQ21|TOYOTA|—|RB7|0.382|0.038|1.475|0.312
 63|11XufmpdXUEN1QgA6SStq0V_tEGePjjNr|TOYOTA|COROLLA|RE9|0.374|0.098|2.15|0.503
 64|1aLV10QX9Ax7ncJibmVFAKrmpgmQzPKs5|SUZUKI|—|61M001;BAE515220099 DH|0.564|3.353|0.27|0.526
 65|1tsQriCkCPSnuQFeDm4OBWaS6FC6s1Aoi|M. BENZ|C180 95/98|KT0180;A2034903614|1.462|2.578|0|0.482
@@ -1787,7 +1787,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 1355|1ZyqDlzvL_z9MdHQyR3Ae9seZL2VcqQG1|MITSUBISHI|TRITON|VK|1.09|0.012|3.063|0.007
 1357|1OrZpXaAcgj32DAIuJsSycO39Oh1cJi12|MITSUBISHI|AIRTREK|FX|0.29|14.5|1.069|0.834
 1358|1qwfL3hhs0IUEbz53lkiKvA4XnUty2bQ2|CHEROKEE|—|107ACF3425;130253420810;510163|0.385|4.291|0|0.587
-1359|1UFwdNV9ly2PDcMJif-KQrNSnPkuAOCsU|M. BENZ|—|KT0268;A2114906336;230237|0.85|0.457|0|0.449
+1359|1UFwdNV9ly2PDcMJif-KQrNSpNkuAOCsU|M. BENZ|—|KT0268;A2114906336;230237|0.85|0.457|0|0.449
 1360|1aHd1xsoc-Jezi1tnujO83QKKUrODBPup|GM|OMEGA AUSTRALIANO|92076476|1.205|0.098|1.662|0.332
 1361|1Gwm9vxz8Oz4-jPohdHvPLP2tDiaL1iy8|CHEROKEE|—|110ACF3425;130253411895;510163|0.375|4.23|0|0.612
 1362|12IrJlGpinMjFUqWGwrT3u86x9EKF9qVV|HYUNDAI/ KIA|2°|2E590;171017|0.58|1.441|0|0.155
@@ -2760,7 +2760,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 5091|1qBNrWFsrQoEBcKADSTc7u5NwnNC0gxEe|TOYOTA|HILUX GAS DUPLA|TE3;UD1|0.61|4.406|1.327|0.418
 5092|1inB8R296DAN87z1vqhPJQJkGDIWVctBv|GM|—|25330730;AJZ246;16605W8|0.91|0.894|0|0.204
 5093|1YEjsAtv9QTC297rmH8VJdOY4uQTlCtTl|FORD|RANGER MOD 1°|AB395E211KE;AB395F297KC|1.55|1.564|3.621|0.022
-5094|1t9Q_HKJW11VYBFNq2TAsL83syL1-x6bc|VW/ AUDI|PASSAT/ A4 1°|8E0131701CS;8E0178BT|0.285|5.632|0.238|0.34
+5094|1t9Q_HKJW11VYBFNq2TAsL83syL1-x6bc|VW/ AUDI|PASSAT/ A4 1°|8E0131701CS|8E0178BT|0.285|5.632|0.238|0.34
 5095|1kq0cHvYUGA9vpJc0C5N31v5KJgVLVmeM|RENAULT|CLIO (GARRAFINHA)|C220;8200209113|0.815|0.036|0.182|0.12
 5096|14QP47QGSEZqHlJxpz18TF4h6t1HB_Hvu|VW|SAVEIRO (ALCOOL) 1°|5X0253101L;5X0131701AA|0.53|0.044|0.228|0.1
 5097|1qBbeJ8zzusnH7mEBQbdpk0wiwmU82Gx-|RENAULT|LOGAN|8200598980;C293N|1.215|1.414|0|0.351
@@ -3825,13 +3825,14 @@ document.getElementById('btnCota').addEventListener('click', () => {
       if (allowed.includes(tab.dataset.tab)) tab.classList.remove('hidden');
       else tab.classList.add('hidden');
     });
-    const active = document.querySelector('.tab.active');
-    if (!active || !allowed.includes(active.dataset.tab)){
-      const first = ALL_TABS.find(t => allowed.includes(t));
-      if (first){
-        const btn = document.querySelector('.tab[data-tab="' + first + '"]');
-        if (btn) btn.click();
-      }
+    // Sempre abrir na aba Pesquisa quando permitida (padrão solicitado).
+    // Se não permitida, cai para a primeira aba permitida na ordem padrão.
+    const target = allowed.includes('pesquisa')
+      ? 'pesquisa'
+      : ALL_TABS.find(t => allowed.includes(t));
+    if (target){
+      const btn = document.querySelector('.tab[data-tab="' + target + '"]');
+      if (btn) btn.click();
     }
   }
 
