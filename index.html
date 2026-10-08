@@ -290,6 +290,9 @@
   .login-btn.face{background:linear-gradient(135deg,#0a8f4a,#16a34a);margin-top:10px}
   .login-btn.face:hover{background:linear-gradient(135deg,#0b7a40,#15803d)}
   .login-btn svg{width:18px;height:18px}
+  .login-btn.install{background:#f1f5f9;color:#0f2338;margin-top:10px;
+    border:1px solid #e2e8f0;font-weight:700;height:44px;font-size:13px}
+  .login-btn.install:hover{background:#e2e8f0;color:#0f2338}
   .login-foot{text-align:center;font-size:10.5px;color:#93a2b3;
     margin-top:20px;letter-spacing:.5px}
 
@@ -435,6 +438,15 @@
           <line x1="15" y1="9" x2="15.01" y2="9"/>
         </svg>
         Entrar com Reconhecimento Facial
+      </button>
+      <button type="button" class="login-btn install" id="loginInstallBtn" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v12"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <path d="M5 21h14"/>
+        </svg>
+        Instalar Aplicativo
       </button>
     </form>
     <div class="login-foot">© Paizão Metais · Sistema de Consulta Técnica</div>
@@ -2094,7 +2106,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 1697|1ZpqFHZAES3xKw09dVbIyIlv02cLUDy0B|VW|GOL GV|032131703D|0.645|1.321|0|0.114
 1698|1G6iDqx5QORPT-59gJwBFY17piTMvYUBG|VW|PASSAT|1K0131701BL;1K0178GA|1.095|1.5|0|0.278
 1699|1yJ44LKuNQNSa00MmTT-jBMBRWIYieSAp|VW|PASSAT/ A4|8D0131701DE|8D0178AM|0.875|4.291|0|0.317
-1701|1AMbkfi5dKkfq9_K62yt7WeicI9BziJ1M|VW|PASSAT 1°|8D0131701EJ;8D0178BF|0.255|4.217|0.969|0.4
+1701|1AMbkfi5dKkfq9_K62yt7WeicI9BziJ1M|VW|PASSAT 1°|8D0131701EJ|8D0178BF|0.255|4.217|0.969|0.4
 1702|1EVRRkB37FkrSoYF5LSLYX25RVE0MGh1m|JAGUAR|—|9X235E212BC;647081;GIZLET C9R5A|0.38|4.714|0|0.246
 1703|1hSqvzN8OLTC53Igx--p-MsuX28OrQouL|FORD|FIESTA/ KA|2S555E211AA;1158990|0.61|0.152|0.185|0.113
 1704|1BgpUNyBHF3NyhzW9eYFwtUYT0rMWdSDX|GM|CAPTIVA MOD.|12677543;901273607|0.575|0.075|0|0.233
@@ -2661,7 +2673,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 2336||GM|SPIN|94730149;904565236|0.735|2.768|0|0.166
 2338|1Gl7eLZQ6xcLwkDTE0lrrFQF71APuJELS|VW|TURBO|8S131701B|8S0166AA;80744705|0.9|9.418|0|0.497
 2339|1_dpJsHjcP0KBi6w_ZciocgBISA2UEOtU|OUTROS|—|96819211;TL0;D1H02|0.76|1.806|0|0.168
-2340|1qt9V2DU_lF9M0GiGcb2klnERJpR35-yL|FORD|FOCUS COLETOR|9M555F297BA;9M555G232BA|1.09|1.719|0|0.163
+2340|1qt9V2DU_lF9M0GiGcb2klnERJpR35-yL|FORD|FOCUS COLETOR|9M555F297BA|9M555G232BA|1.09|1.719|0|0.163
 2341|1bhn4MfKFquRVsUhWdJt-CFS7w_0IK6Ze|FORD|FOCUS|DS935G232CB|0.81|3.895|0|0.111
 2342|11jHuJBFAUllQ23iJiE5YU10lkqz9ZDWq|VW|TIGUAN 1°|5N0131690R;1K0166DC|0.39|2.464|0.24|0.258
 2343|11d2V3f9zMchN0mBjEI-66ZGxBW6bBrIt|VW|AUDI|4A0131701AA;4A0178D|0.545|0.025|1.215|0.24
@@ -2678,7 +2690,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 5002|1h_UtghLYpU2h3oaSV_6VTFku7aV-Duw0|KIA|6CC|PODM;GEHR053|0.22|7.782|0|0
 5003|1ARCCanYGwttDp6CoKLemuxG8kMc0fg3z|HYUNDAI|SONATA COLETOR|2G330;13E18B|0.21|7.822|0|0
 5004|14tw5hSitrNMUVwqLKvJj0LfFvcCZUdn3|KIA|CARNIVAL (2°)|3CEY0;11G06A|0.565|1.392|0|0.132
-5005|1SD1X3wk2W3sqFsrpvNxGI45nyJ29KgDO|KIA|2°|3CEY0;11C16B|0.55|1.467|0|0.162
+5005|1SD1X3wk2W3sqFsrpvNxGI45nyJ29KgDO|KIA|2°|3CEY0|11C16B|0.55|1.467|0|0.162
 5006|1WTSrTiEOX5f9UHYrMIU7hBNxtCpabTLI|KIA|6CC|P0DN;GCPR053|0.23|6.716|0|0.059
 5007|12Y3Jgsh3ECCICCJRwxpowS3o1YIxYTJl|GM|CORSA COLETOR|24577988|0.64|0.292|0|0.197
 5008|1-sNslA6OniBeW-7QxFOBtkgNLYC8v_PE|AUDI|A7|LE;4G0131703K;4G0178BA|0.925|4.557|0|0.267
@@ -2699,14 +2711,14 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 5027|1hdXaSEp0oRyywwijIh0-CzyuSEecjrgn|LIFAN|—|115220531000;47514;778AA|0.44|7.077|0|0.363
 5028|1vNAH-nOMdwyJ31hlZcE0w9kUDA-UJexL|LIFAN|—|115220531000;47514;778AA|0.415|7.723|0|0.409
 5029|18EXGtlwglF49H9aDCVdbBp3PDEKxDZSj|FORD|FIESTA 1.6|XS615K282BA|0.43|0.09|0.237|0.142
-5030|1hMxrZDFjqAIrkzLvQ3V-SrrEE_AsGvOx|FIAT|UNO FIRE|55188317;2LFDHM2166|0.685|0.094|0|0.22
+5030|1hMxrZDFjqAIrkzLvQ3V-SrrEE_AsGvOx|FIAT|UNO FIRE|55188317|2LFDHM2166|0.685|0.094|0|0.22
 5032|1vZ4qPl4s47YeJfpnYH5fdFLuLYuBg6hd|VW|PASSAT/ A4 2°|8E0131701FE|8E0178CT|0.97|0.067|1.356|0.661
 5033|1waTWBRKDdJ4SESUMiLCGSZMPBQVqrKir|GM|—|25330730;AJ2246;17205W8|0.96|0.851|0|0.191
 5034|13dzE82pIWJbmrS3TAhkQHbKZ_S7qQjtt|LAND ROVER|—|549345;407020153;NJ0002|0.165|2.919|0|0.198
 5035||FIAT|PALIO|H55186690|1.06|0.58|0|0.348
 5036|1LYK68RDK9ZMyv3nIjlImrAeRiw4G6fqQ|M. BENZ|—|A2044903514;KT0268;2340631|0.84|0.39|0.131|0.387
 5037|1e6C-9o1TBRwnmnpuDd1ZWDJWHcnTk1R2|PEUGEOT|307|TRPSAK093;222450717;A7661114200|0.65|0.055|1.375|0.271
-5038|19QbD-dns2m7PwKyhnZV9tjImuJbamuBP|VW|PASSAT/ A4 1°|8E0131701DF;8E0178L|0.31|6.727|0.435|0.388
+5038|19QbD-dns2m7PwKyhnZV9tjImuJbamuBP|VW|PASSAT/ A4 1°|8E0131701DF|8E0178L|0.31|6.727|0.435|0.388
 5040|1x4xUXve96A-pRuh--VihHze6EWVLVaHa|M. BENZ|—|KT0174;A20349051;2238505004|0.56|0.118|0.899|0.444
 5041|1rq21406HQZbxt0DGxUfWSU3A2VtRg9xk|GM|CAMARO 1°|12610773;18310CTC;2USA|0.75|2.575|0|0.152
 5042|1iW2xIPeViMJztJ5udOHf3H08A-X5m3iY|VW|GOL SPECIAL|377253101;D06231AJF|0.695|0.919|0|0.101
@@ -2754,7 +2766,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 5097|1qBbeJ8zzusnH7mEBQbdpk0wiwmU82Gx-|RENAULT|LOGAN|8200598980;C293N|1.215|1.414|0|0.351
 5098|1kEmK-ltg_r2GSfjgXN_5YYIt3A73Zke7|VW|SAVEIRO (ALCOOL) 2°|5X0131701R;5X0131703D|0.63|0.049|0.221|0.19
 5101|15CcVmG-9-7AvTkfHGZXtWrIIbqS0jb-L|DODGE|JOURNEY|133133 (FLANGE);501AC22053B1373|0.31|3.442|0|0.225
-5103|1Q6iu6f4evbYJ3lb1obuGvIutI5o3Gpl4|VW/ AUDI|PASSAT/ A4 (2°)|8E0131701CT;8E0178CB|0.9|4.395|0.374|0.354
+5103|1Q6iu6f4evbYJ3lb1obuGvIutI5o3Gpl4|VW/ AUDI|PASSAT/ A4 (2°)|8E0131701CT|8E0178CB|0.9|4.395|0.374|0.354
 5104|17GKO47wna9y5PI213SDB2HMVJRsfiBww|RENAULT|SCENIC/ KANGOO|C109;112709734000;7700431975|1.034|1.477|0|0.309
 5105|1afVzS02CGLudzC-63lq1s2DT87yxH3tu|VW|PASSAT/ A4|8E0131701DA|8E0178CC|0.955|3.865|0.381|0.325
 5107|14Rt_1Zqv9YmgsS4pNRijKWULc_WcQLMu|M. BENZ|—|KT0174;A20349075014;22318505003|0.545|0.083|0.839|0.387
@@ -3211,7 +3223,6 @@ document.addEventListener('keydown', e => {
    ========================================================= */
 function openEditModal(item){
   const orig = item._orig || item;
-  /* Guarda o registro atual na variável global usada pelo botão Salvar */
   window.__editingOrig = orig;
   document.getElementById('modal').innerHTML = `
     <div class="modal-head">
@@ -4839,12 +4850,14 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
 <!-- ============================================================
      PWA — MANIFEST + INSTALAÇÃO COMO APP
+     Botão "Instalar" aparece na tela de login E na topbar.
+     Ambos somem automaticamente quando o app é instalado.
      ============================================================ -->
 <script>
 (function pwaSetup(){
   'use strict';
 
-  // 1) Injeta o manifest dinamicamente, apontando para "logo.png" como ícone
+  // 1) Injeta o manifest dinamicamente (fallback se manifest.json não estiver acessível)
   try {
     const logoUrl = new URL('logo.png', location.href).href;
     const baseUrl = location.href.split('?')[0].split('#')[0];
@@ -4878,9 +4891,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
     link.href = url;
   } catch(e){ /* silencioso */ }
 
-  // 2) Botão "Instalar" — aparece somente quando o app NÃO está instalado
-  const btnInstall = document.getElementById('btnInstall');
-  if (!btnInstall) return;
+  // 2) Botões de instalação (topbar + tela de login)
+  const btnTop   = document.getElementById('btnInstall');
+  const btnLogin = document.getElementById('loginInstallBtn');
+  if (!btnTop && !btnLogin) return;
 
   let deferredPrompt = null;
 
@@ -4893,23 +4907,31 @@ document.getElementById('btnCota').addEventListener('click', () => {
     )) || window.navigator.standalone === true;
   }
 
-  // Se já está instalado (rodando em modo app), esconde o botão de vez
+  function hideBoth(){
+    if (btnTop)   btnTop.style.display = 'none';
+    if (btnLogin) btnLogin.style.display = 'none';
+  }
+
+  function showBoth(){
+    if (btnTop)   btnTop.style.display = 'inline-flex';
+    if (btnLogin) btnLogin.style.display = 'flex';
+  }
+
+  // Se já está instalado (rodando em modo app), esconde de vez
   if (isStandalone()){
-    btnInstall.style.display = 'none';
+    hideBoth();
     return;
   }
 
-  // Guarda o evento de instalação disponibilizado pelo navegador
+  // Navegador sinaliza que o app é instalável
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    btnInstall.style.display = 'inline-flex';
+    showBoth();
   });
 
-  // Clique no botão → dispara a instalação automática
-  btnInstall.addEventListener('click', async () => {
+  async function triggerInstall(){
     if (!deferredPrompt){
-      // Navegador não expôs o prompt (iOS, Firefox, etc.)
       alert(
         'A instalação automática não está disponível neste navegador.\n\n' +
         'Para instalar, use o menu do navegador:\n' +
@@ -4920,26 +4942,29 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }
     try {
       deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
+      await deferredPrompt.userChoice;
       deferredPrompt = null;
-      // Some após o usuário instalar (ou recusar) — só aparece quando não instalado
-      btnInstall.style.display = 'none';
+      // Após a escolha do usuário, esconde ambos (some automaticamente)
+      hideBoth();
     } catch(err){
-      btnInstall.style.display = 'none';
+      hideBoth();
     }
-  });
+  }
 
-  // Quando o app for instalado, esconde o botão permanentemente
+  if (btnTop)   btnTop.addEventListener('click', triggerInstall);
+  if (btnLogin) btnLogin.addEventListener('click', triggerInstall);
+
+  // App foi instalado → esconde permanentemente
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
-    btnInstall.style.display = 'none';
+    hideBoth();
   });
 
-  // Reforço: se a página mudar para modo standalone (instalou), esconde
+  // Reforço: se a página mudar para modo standalone (instalou agora), esconde
   if (window.matchMedia){
     try {
       const mq = window.matchMedia('(display-mode: standalone)');
-      const handler = () => { if (mq.matches) btnInstall.style.display = 'none'; };
+      const handler = () => { if (mq.matches) hideBoth(); };
       if (mq.addEventListener) mq.addEventListener('change', handler);
       else if (mq.addListener) mq.addListener(handler);
     } catch(_){}
