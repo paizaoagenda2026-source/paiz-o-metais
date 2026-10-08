@@ -428,7 +428,6 @@
     filter:drop-shadow(0 6px 20px rgba(245,158,11,.35));
   }
 
-  /* Ajustes específicos para telas pequenas (celular) na tela de login */
   @media(max-width:480px){
     .login-card{padding:32px 22px 22px;border-radius:18px}
     .login-brand h1{font-size:20px}
@@ -840,9 +839,19 @@
   </section>
 </main>
 
+<!-- ============================================================
+     ABA COTAÇÕES — com o botão "Cotação" agora aqui
+     ============================================================ -->
 <main class="wrap hidden" id="view-cotacoes">
   <section class="panel">
-    <div class="panel-head"><h2>Cotações dos Metais</h2><span class="sub">Base de cálculo atual · atualize em "Parâmetros"</span></div>
+    <div class="panel-head">
+      <h2>Cotações dos Metais</h2>
+      <span class="sub">Base de cálculo atual · atualize em "Parâmetros"</span>
+      <button class="btn" id="btnCotacao" title="Buscar cotações atualizadas no site da Kitco">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Cotação
+      </button>
+    </div>
     <div class="metal-grid" id="metalGrid"></div>
   </section>
   <section class="panel">
@@ -988,10 +997,6 @@ const SHEET_CSV_URL = "COLE_AQUI";
 
 /* =========================================================
    BASE DE DADOS — CATALISADORES
-   Formato por linha (9 campos padrão):
-     ref|img|marca|modelo|cod|peso|pd|pt|rh
-   Formato estendido (13 campos — com 2ª pedra opcional):
-     ref|img|marca|modelo|cod|peso|pd|pt|rh|peso2|pd2|pt2|rh2
    ========================================================= */
 const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 1|1WYGzZ2OppfhTIruXqF6j9Qsckdb633z-|RENAULT|LOGAN|8200852483;C337;1127681000|0.972|3.175|0|0.497
@@ -2716,7 +2721,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 2220|11u0hjhMSsWQprROgCDP53e6Ji8hILndl|FORD|FIESTA C/ FLEX|E3B15F297AB;148152XGL61A|0.535|2.994|0|0.181
 2221|1H6cN-JX5KBaaANu30YFBs9-mumjnfTzw|RENAULT|TRANSIT|CC415H250AC;CC115K206BB;E4057618|0.71|0.652|1.505|0.018
 2222|1o-Xeq2fkQe9E54j44M7DOePW_q8Gpb5l|LIFAN|MASTRA|G08130528|0.0|0|0|0
-2223|1dV09uw59A0df6FxxYW7xqY_bTktDFvxD|FIAT|MAREA|60667304;60652864;2257302200|0.53|0.093|1.428|0.302
+2223|1dV09uw59A0df6FxxYW7xqY_bTktDFvxD|FIAT|MAREA|60667304;60652864|0.53|0.093|1.428|0.302
 2224|1UOpIJRqQ3DrLarQNleVLWkPI2pl5mD8O|OUTROS|—|F314;1205100HNAC;201306008|0.485|0.97|0|0.119
 2226|19GOIX5msqIkQTa0uVRw9WxuMRJdg9nW7|FORD|FUSION ENCAIXE|AE53297TB|0.39|3.046|0|0.057
 2227|1tVAR-vuXmIwLbHX0E1jgZ48tmP6v-OJZ|TOYOTA|COLETOR HIBRIDO|1935700298TC;BAF2020 (FLANGE);193813636 (COLETOR FLANGE)|0.435|1.407|0|0.534
@@ -2758,7 +2763,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 2268|1aD7iwR_7EdPvmWgffFE-RZjrlkQnDYV6|BMW|—|7565334;588740|0.455|8.69|0|0.511
 2269|1pFF9YBUndkYPy6v3hqcHCYjjigayO1qg|FORD|ECO|PROTOTIPO;BSRH8|0.625|3.089|0|0.269
 2270|1vHQiKOBmxfPH_59CG04aIQczf5hJx19f|VW|—|8S0131701B|8S0166AA;80744705|0.88|9.156|0|0.585
-2271|18z1_b4UfMCfkuSdKhRa4Bql8NeJKa9J5|VW|—|8V0131701A;8J0166AB;80684805|0.39|10.2|0|0.724
+2271|18z1_b4UfMCfkuSdKhRa4Bql8NeJKa9J5|VW|—|8V0131701A|8J0166AB;80684805|0.39|10.2|0|0.724
 2272|1ozB7eAcuq23NraMucgohcOEIWYauYPbU|M. BENZ|AMG|KTA049;A2224907000|0.42|7.902|0|0.371
 2274|157jxZvLfU2zFw2R27zV6RiB2AAo_D0Su|TOYOTA|COROLLA DUPLA|RU9;RV1|0.48|0.519|0.807|0.347
 2275|1SUm_ZBoYbSInLBPhGsKn8S0FfELUJEiI|SUZUKI|2°|60G1|0.475|0.057|1.333|0.3
@@ -2807,7 +2812,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 2325|1FOOt_t4EmY23uV6hsh_DgSBJiBGtaMQk|M. BENZ|—|KTA034;A2214956145514|0.81|1.901|0|0.539
 2326|1TsBUZIy9uu5etwKDnEKAXQ1XngRCIvvo|SUBARU|—|FCA75;5709SK|0.445|17.8|0|0.48
 2327|1SuOokeadedSLyHPTnjMoj3hMWNJdjnn-|FORD|6CC|XS715G236CC;M0088|0.34|3.922|0|0.269
-2328|1drxrUIKfGDbdqR-1HMqf_xrEEuKGNvtE|VW|TURBO|8U0131701A;8J0166AB;80684805|0.4|8.921|0|0.4
+2328|1drxrUIKfGDbdqR-1HMqf_xrEEuKGNvtE|VW|TURBO|8U0131701A|8J0166AB;80684805|0.4|8.921|0|0.4
 2329|1WdRp-MYIUupyZxOVxpq7I8C9FreYITMt|VW|—|RZ02238004006;7L6131701M|1.025|0.203|4.193|0.009
 2330|1yKvNdS_WBS_vy1NedWWb91gDw2BCPnlo|OUTROS|—|BM4410/BYD;EBYDDNGKC;UMICORE|0.595|1.219|0|0.236
 2331|1Vx-l11ihUGqHo0YEvRmWVZ_wMw_VOcFg|VW|GOL GV|032131703L;032178CA|0.515|2.276|0|0.176
@@ -2905,9 +2910,9 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 5093|1YEjsAtv9QTC297rmH8VJdOY4uQTlCtTl|FORD|RANGER MOD 1°|AB395E211KE;AB395F297KC|1.55|1.564|3.621|0.022
 5094|1t9Q_HKJW11VYBFNq2TAsL83syL1-x6bc|VW/ AUDI|PASSAT/ A4 1°|8E0131701CS|8E0178BT|0.285|5.632|0.238|0.34
 5095|1kq0cHvYUGA9vpJc0C5N31v5KJgVLVmeM|RENAULT|CLIO (GARRAFINHA)|C220;8200209113|0.815|0.036|0.182|0.12
-5096|14QP47QGSEZqHlJxpz18TF4h6t1HB_Hvu|VW|SAVEIRO (ALCOOL) 1°|5X0253101L;5X0131701AA|0.53|0.044|0.228|0.1
+5096|14QP47QGSEZqHlJxpz18TF4h6t1HB_Hvu|VW|SAVEIRO (ALCOOL) 1°|5X0253101L|5X0131701AA|0.53|0.044|0.228|0.1
 5097|1qBbeJ8zzusnH7mEBQbdpk0wiwmU82Gx-|RENAULT|LOGAN|8200598980;C293N|1.215|1.414|0|0.351
-5098|1kEmK-ltg_r2GSfjgXN_5YYIt3A73Zke7|VW|SAVEIRO (ALCOOL) 2°|5X0131701R;5X0131703D|0.63|0.049|0.221|0.19
+5098|1kEmK-ltg_r2GSfjgXN_5YYIt3A73Zke7|VW|SAVEIRO (ALCOOL) 2°|5X0131701R|5X0131703D|0.63|0.049|0.221|0.19
 5101|15CcVmG-9-7AvTkfHGZXtWrIIbqS0jb-L|DODGE|JOURNEY|133133 (FLANGE);501AC22053B1373|0.31|3.442|0|0.225
 5103|1Q6iu6f4evbYJ3lb1obuGvIutI5o3Gpl4|VW/ AUDI|PASSAT/ A4 (2°)|8E0131701CT|8E0178CB|0.9|4.395|0.374|0.354
 5104|17GKO47wna9y5PI213SDB2HMVJRsfiBww|RENAULT|SCENIC/ KANGOO|C109;112709734000;7700431975|1.034|1.477|0|0.309
@@ -2959,7 +2964,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 5165|1HMhtGDnB02ZSZ0ZuYBMvveZKm66vrExI|PEUGEOT|405|TRPSAK039;2133200720;A7641110200|1.17|0.105|1.238|0.263
 5166|1Ln6KC6e3bf1h9pOmABTs6u-FGFEonG7M|SUBARU|2°|RCFA2|0.6|3.845|1.822|0.704
 5167|1ZOJkKN2t4YHiI8BcjadEu-U-qJECCgdG|FIAT|TEMPRA SW|7790798|0.7|0.168|1.143|0.279
-5168|1WqDpjPzFXg2ApBXiGJWXQNB7o_xHNNlX|VW|GOL POWER|5X0253101E;5X0131701T|0.625|0.033|0.369|0.335
+5168|1WqDpjPzFXg2ApBXiGJWXQNB7o_xHNNlX|VW|GOL POWER|5X0253101E|5X0131701T|0.625|0.033|0.369|0.335
 5169|1eNOB2dQA0AtBTOPAnzNhYDwxb2nKYxKC|DODGE|JORNEY MOD.|09530RQ832C8885|0.3|0.546|0|0.264
 5170|1-SjekJ3EHengMkCKPq2CGOJ35YAaepbC|NISSAN|2° LONGA|3TRCDA|0.685|0.122|0.852|0.161
 5171|1lmlUF8x1A0-ZZAdY6tXK5hPRLyVcH9Hi|VW|GOLF|1SB178BA;1SB131701B;BR1PJ|0.865|2.651|0|0.194
@@ -3039,7 +3044,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 5271|1MgjBy9jjceAeJK3VVUKp774qDSylK1C0|BMW|—|7564948;572214|0.53|5.135|0|0.597
 5272|1EylgbZR9daF8R2vAb6D8EgNNONY7Vbgj|GM|S10 MOD|12677547;901273607|0.495|4.402|0|0.184
 5273|1b_9th5DJmja_-J48xOzg-IirJGk1pSbC|VOLVO|COLETOR|30751663;BQ7QA;2448616800|0.335|7.04|0|0.627
-5274|1BN4GOzOl4h_mXUKCsZ2_UoklHesHHpJD|PEUGEOT|106|K052;2187516;2D0005872002|0.5|0.05|1.387|0.309
+5274|1BN4GOzOl4h_mXUKCsZ2_UoklHesHHpJD|PEUGEOT|106|K052;2187516|2D0005872002|0.5|0.05|1.387|0.309
 5275|1NAjFc9hoFUylKqBR7kiRhxg8OWwDvvPJ|LIFAN|COLETOR|WXHHGIV1.3L-I80223;FAB1205100G100501|0.6|2.001|0|0.118
 5276|1iB2SSxHGpdvupWdCVndyp9lGKh7-1dEm|FIAT|UNO COLETOR|H55217679|0.515|0.322|0|0.096
 5277|1ABgJ4-RJ7PeHpIJthiKQIW2TXRarRPL0|CHRYSLER|DIESEL|20085070874;4A4A|0.75|0.035|5.057|0.007
@@ -3181,7 +3186,6 @@ const esc = s => String(s ?? '')
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
   .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
-/* Aceita tanto um ID do Drive quanto um data URL (foto capturada/PC) */
 function imgSrc(img, size){
   if(!img) return '';
   if(typeof img === 'string' && img.startsWith('data:')) return img;
@@ -3577,14 +3581,142 @@ document.getElementById('clearQ').addEventListener('click', () => {
 });
 document.getElementById('fMarca').addEventListener('change', e => { state.marca = e.target.value; render(); });
 document.getElementById('btnReload').addEventListener('click', render);
-document.querySelectorAll('thead th.sortable').forEach(th => {
-  th.addEventListener('click', () => {
-    const k = th.dataset.sort;
-    if(state.sortKey === k){ state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc'; }
-    else { state.sortKey = k; state.sortDir = (k === 'cod' || k === 'marca') ? 'asc' : 'desc'; }
+
+/* =========================================================
+   BOTÃO COTAÇÃO — BUSCA AUTOMÁTICA NA KITCO
+   (agora na aba "Cotações & Parâmetros")
+   ========================================================= */
+function showToast(message, isError) {
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  const bg = isError ? '#dc2626' : '#0f9d58';
+  const shadow = isError ? 'rgba(220,38,38,.4)' : 'rgba(15,157,88,.4)';
+  toast.style.cssText = 'position:fixed;top:80px;right:20px;z-index:9999;background:' + bg + ';color:#fff;padding:12px 20px;border-radius:10px;font-family:inherit;font-size:13.5px;font-weight:600;box-shadow:0 8px 24px ' + shadow + ';max-width:340px;line-height:1.4;opacity:0;transform:translateY(-10px);transition:.3s;';
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => { toast.style.opacity = '1'; toast.style.transform = 'none'; });
+  setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(-10px)'; setTimeout(() => toast.remove(), 400); }, 4200);
+}
+
+/**
+ * Busca cotações (Pd, Pt, Rh) em US$/ozt no site da Kitco.
+ * A página é renderizada no cliente, portanto o HTML pode conter os valores
+ * em elementos com classes específicas. Este parser procura por linhas que
+ * contenham o nome do metal e extrai o primeiro número no formato decimal.
+ */
+async function fetchKitcoPrices() {
+  const btn = document.getElementById('btnCotacao');
+  if (!btn) return;
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Atualizando...';
+
+  const targetUrl = 'https://www.kitco.com/price/precious-metals';
+  const proxies = [
+    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+    u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+    u => 'https://corsproxy.io/?url=' + encodeURIComponent(u)
+  ];
+
+  let html = null;
+  for (const build of proxies) {
+    try {
+      const r = await fetch(build(targetUrl), { cache: 'no-store' });
+      if (!r.ok) continue;
+      const t = await r.text();
+      if (t && t.length > 500) { html = t; break; }
+    } catch (_) { /* tenta próximo proxy */ }
+  }
+
+  if (!html) {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+    showToast('Não foi possível buscar cotações automaticamente. Atualize manualmente em "Parâmetros".', true);
+    return;
+  }
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // Estratégia 1: procurar por elementos <tr>, <li>, <div>, <span>, <td>
+    // que contenham o nome do metal e extrair o primeiro número decimal.
+    // A classe "BidAskGrid_listify__1liIU" é usada para as linhas da tabela
+    // de cotações na página da Kitco (conforme inspeção do site).
+    const candidateSelectors = [
+      'tr', 'li', 'div', 'span', 'td',
+      '.BidAskGrid_listify__1liIU',
+      '[class*="BidAskGrid"]',
+      '[class*="price"]',
+      '[class*="spot"]'
+    ];
+
+    let pd = null, pt = null, rh = null;
+
+    for (const selector of candidateSelectors) {
+      const elements = doc.querySelectorAll(selector);
+      for (const el of elements) {
+        const text = el.textContent || '';
+        if (!pd && /Palladium|Paládio/i.test(text) && text.length < 300) {
+          const m = text.match(/([\d,]+\.\d{2})/);
+          if (m) { const v = parseFloat(m[1].replace(/,/g, '')); if (isFinite(v) && v > 100) pd = v; }
+        }
+        if (!pt && /Platinum|Platina/i.test(text) && text.length < 300) {
+          const m = text.match(/([\d,]+\.\d{2})/);
+          if (m) { const v = parseFloat(m[1].replace(/,/g, '')); if (isFinite(v) && v > 100) pt = v; }
+        }
+        if (!rh && /Rhodium|Ródio/i.test(text) && text.length < 300) {
+          const m = text.match(/([\d,]+\.\d{2})/);
+          if (m) { const v = parseFloat(m[1].replace(/,/g, '')); if (isFinite(v) && v > 100) rh = v; }
+        }
+        if (pd !== null && pt !== null && rh !== null) break;
+      }
+      if (pd !== null && pt !== null && rh !== null) break;
+    }
+
+    // Estratégia 2 (fallback): procurar por qualquer elemento que contenha
+    // os números próximos aos nomes dos metais, mesmo que a classe tenha mudado.
+    if (pd === null || pt === null || rh === null) {
+      const allElements = doc.querySelectorAll('*');
+      for (const el of allElements) {
+        const text = el.textContent || '';
+        if (pd === null && /Palladium|Paládio/i.test(text) && text.length < 200) {
+          const m = text.match(/(\d{3,5}\.\d{2})/);
+          if (m) { const v = parseFloat(m[1].replace(/,/g, '')); if (isFinite(v) && v > 100) pd = v; }
+        }
+        if (pt === null && /Platinum|Platina/i.test(text) && text.length < 200) {
+          const m = text.match(/(\d{3,5}\.\d{2})/);
+          if (m) { const v = parseFloat(m[1].replace(/,/g, '')); if (isFinite(v) && v > 100) pt = v; }
+        }
+        if (rh === null && /Rhodium|Ródio/i.test(text) && text.length < 200) {
+          const m = text.match(/(\d{3,5}\.\d{2})/);
+          if (m) { const v = parseFloat(m[1].replace(/,/g, '')); if (isFinite(v) && v > 100) rh = v; }
+        }
+        if (pd !== null && pt !== null && rh !== null) break;
+      }
+    }
+
+    if (pd === null || pt === null || rh === null) {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+      showToast('Não foi possível extrair as cotações da página. Atualize manualmente em "Parâmetros".', true);
+      return;
+    }
+
+    CFG.pd = pd; CFG.pt = pt; CFG.rh = rh;
+    try { localStorage.setItem(LS_KEY, JSON.stringify(CFG)); } catch (_) {}
+    renderCotacoes();
     render();
-  });
-});
+    renderPesq();
+    showToast(`Cotações atualizadas: Pd US$ ${pd.toFixed(2)}, Pt US$ ${pt.toFixed(2)}, Rh US$ ${rh.toFixed(2)}`);
+  } catch (err) {
+    showToast('Erro ao processar cotações. Atualize manualmente em "Parâmetros".', true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+}
+
+document.getElementById('btnCotacao').addEventListener('click', fetchKitcoPrices);
 
 /* =========================================================
    ABA PESQUISA (layout de catálogo com cards)
@@ -3820,7 +3952,7 @@ async function syncSheet(){
 document.getElementById('btnSync').addEventListener('click', syncSheet);
 
 /* =========================================================
-   BOTÃO COTAÇÕES
+   BOTÃO COTAÇÕES (MANUAL — PROMPT)
    ========================================================= */
 document.getElementById('btnCota').addEventListener('click', () => {
   const p = prompt(
