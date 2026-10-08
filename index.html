@@ -256,28 +256,31 @@
     .pesq-logo-text{font-size:22px}
   }
 
+  /* =========================================================
+     TELA DE LOGIN — ajustada para ficar idêntica à referência
+     ========================================================= */
   .login-overlay{position:fixed;inset:0;z-index:9999;
-    background:linear-gradient(135deg,#0f2338 0%,#17324e 50%,#1d3f61 100%);
+    background:linear-gradient(180deg,#0d1e30 0%,#0f2338 55%,#14283f 100%);
     display:flex;align-items:center;justify-content:center;padding:20px;
     font-family:inherit;overflow:hidden}
-  .login-card{background:#fff;border-radius:18px;width:min(420px,100%);
-    padding:34px 30px 24px;box-shadow:0 30px 80px rgba(0,0,0,.45);
+  .login-card{background:#fff;border-radius:20px;width:min(400px,100%);
+    padding:40px 30px 26px;box-shadow:0 24px 60px rgba(0,0,0,.5);
     animation:loginPop .35s cubic-bezier(.2,.8,.3,1);
     position:relative;z-index:1}
   @keyframes loginPop{from{transform:translateY(24px) scale(.95);opacity:0}to{transform:none;opacity:1}}
-  .login-brand{text-align:center;margin-bottom:26px}
+  .login-brand{text-align:center;margin-bottom:30px}
   .login-mark{width:64px;height:64px;border-radius:50%;
     background:linear-gradient(140deg,#f59e0b,#fbbf24);color:#3b2400;font-weight:900;
     font-size:22px;display:grid;place-items:center;margin:0 auto 14px;
     box-shadow:0 6px 20px rgba(245,158,11,.45)}
-  .login-brand h1{font-size:21px;color:#0f2338;letter-spacing:.5px;margin-bottom:4px}
-  .login-brand p{font-size:11px;color:#5a6a7d;letter-spacing:1.8px;
+  .login-brand h1{font-size:22px;color:#0f2338;letter-spacing:.8px;font-weight:800;margin-bottom:5px}
+  .login-brand p{font-size:10.5px;color:#5a6a7d;letter-spacing:2.4px;
     text-transform:uppercase;font-weight:700}
   .login-field{margin-bottom:16px}
-  .login-field label{display:block;font-size:11px;font-weight:700;color:#5a6a7d;
-    margin-bottom:6px;text-transform:uppercase;letter-spacing:.7px}
-  .login-field input{width:100%;height:48px;border:1px solid #e2e7ee;border-radius:10px;
-    padding:0 14px;font-size:15px;font-family:inherit;background:#fafbfc;color:#16202c;
+  .login-field label{display:block;font-size:10.5px;font-weight:700;color:#5a6a7d;
+    margin-bottom:7px;text-transform:uppercase;letter-spacing:1px}
+  .login-field input{width:100%;height:52px;border:1px solid #e2e7ee;border-radius:12px;
+    padding:0 16px;font-size:15px;font-family:inherit;background:#fafbfc;color:#16202c;
     transition:.18s}
   .login-field input#loginUser{text-transform:uppercase;letter-spacing:1px;font-weight:700}
   .login-field input[type="password"]{letter-spacing:3px;font-weight:700}
@@ -285,8 +288,8 @@
     box-shadow:0 0 0 3px rgba(245,158,11,.18)}
   .login-error{color:#dc2626;font-size:12.5px;font-weight:600;
     min-height:18px;margin-bottom:6px;text-align:center}
-  .login-btn{width:100%;height:48px;border-radius:10px;border:none;
-    background:#0f2338;color:#fff;font-size:14px;font-weight:700;
+  .login-btn{width:100%;height:52px;border-radius:12px;border:none;
+    background:#0f2338;color:#fff;font-size:14.5px;font-weight:700;
     cursor:pointer;font-family:inherit;letter-spacing:.4px;transition:.18s;
     display:flex;align-items:center;justify-content:center;gap:9px}
   .login-btn:hover{background:#17324e}
@@ -295,10 +298,10 @@
   .login-btn.face:hover{background:linear-gradient(135deg,#0b7a40,#15803d)}
   .login-btn svg{width:18px;height:18px}
   .login-btn.install{background:#f1f5f9;color:#0f2338;margin-top:10px;
-    border:1px solid #e2e8f0;font-weight:700;height:44px;font-size:13px}
+    border:1px solid #e2e8f0;font-weight:700;height:46px;font-size:13px}
   .login-btn.install:hover{background:#e2e8f0;color:#0f2338}
   .login-foot{text-align:center;font-size:10.5px;color:#93a2b3;
-    margin-top:20px;letter-spacing:.5px}
+    margin-top:22px;letter-spacing:.5px}
 
   .login-bg-logo{
     position:absolute;
@@ -392,9 +395,6 @@
     color:var(--txt);cursor:pointer;font-weight:500;user-select:none}
   .usr-perm-box input[type="checkbox"]{width:16px;height:16px;cursor:pointer;accent-color:var(--amber)}
 
-  /* =========================================================
-     ABA NOVO — Cadastro rápido de lançamentos
-     ========================================================= */
   #view-novo .form-body{padding:18px}
   #view-novo .form-body .field{margin-bottom:14px}
   #view-novo .selfie-box{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -415,9 +415,6 @@
   }
   #novoRefHint{font-weight:600;color:#0a8f4a}
 
-  /* =========================================================
-     LOGOS — substituição do símbolo "PM" pelo logo.png
-     ========================================================= */
   .brand .brand-logo{
     width:44px;height:44px;object-fit:contain;display:block;flex-shrink:0;
     filter:drop-shadow(0 3px 10px rgba(245,158,11,.4));
@@ -427,8 +424,17 @@
     filter:drop-shadow(0 4px 12px rgba(10,143,74,.25));
   }
   .login-mark-img{
-    width:90px;height:90px;object-fit:contain;margin:0 auto 14px;display:block;
+    width:90px;height:90px;object-fit:contain;margin:0 auto 16px;display:block;
     filter:drop-shadow(0 6px 20px rgba(245,158,11,.35));
+  }
+
+  /* Ajustes específicos para telas pequenas (celular) na tela de login */
+  @media(max-width:480px){
+    .login-card{padding:32px 22px 22px;border-radius:18px}
+    .login-brand h1{font-size:20px}
+    .login-mark-img{width:80px;height:80px}
+    .login-field input{height:50px}
+    .login-btn{height:50px}
   }
 </style>
 </head>
@@ -2872,7 +2878,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 5055|1jLgdVKWNZKyTkFZOytQN8iLBO4Ymbv6w|RENAULT|LOGAN|82004450971;C293|1.16|1.479|0|0.372
 5058|1pSdC5My-nnDIs8Fjjz3j2YvbAWn0umS1|VW|GOLF 1.6|1J0131701ED;1JF0079784|0.78|1.794|0|0.282
 5061|1CJC9Pm1GSRWXgVd2Zn3-ZrzINhJ4u_GK|VW|GOLF 2.0|1J0131701KJ;D22098|0.225|2.633|0.139|0.183
-5062|1EfDFXqBKTMDtddSpUpch_fOeql3EZCe7|VW/ AUDI|PASSAT/ A4 (1°)|8EA0131701FD;8E0178CS|0.305|4.489|0.349|0.357
+5062|1EfDFXqBKTMDtddSpUpch_fOeql3EZCe7|VW/ AUDI|PASSAT/ A4 (1°)|8EA0131701FD|8E0178CS|0.305|4.489|0.349|0.357
 5064|1uuq5yJzGbn-zyIIK4oD0XmXsCsQkQZtn|FIAT|PALIO 1.4|H55199871;QDQ7222;1093|0.625|0.185|0|0.18
 5065|1BzuXapwFYqBX4A3lwnFNe7QMyM8Po_5T|TOYOTA|6CC COLETOR|R31720|0.505|6.49|0|0.231
 5066|141L5MdVfpduYAiSm0_P0KgBJBhfws1tn|FIAT|STILO|55187106;1061;4C0F7F83|1.03|0.611|0|0.357
@@ -3879,7 +3885,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
         ? ALL_TABS.slice()
         : (u.type === 'COMPRADOR' ? ['catalisador','pesquisa','cotacoes'] : ['catalisador','pesquisa']);
     }
-    /* Migração: garante que ADMs tenham acesso à nova aba "novo" */
     if(u.type === 'ADM' && Array.isArray(u.permissions) && !u.permissions.includes('novo')){
       u.permissions.push('novo');
     }
