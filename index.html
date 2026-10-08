@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paizão Metais · Consulta de Catalisadores</title>
+<meta name="theme-color" content="#0f2338">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Paizão Metais">
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+<link rel="manifest" id="pwaManifest">
 <style>
   :root{
     --navy:#0f2338;--navy-2:#17324e;--steel:#5b7189;--line:#e2e7ee;--bg:#f4f6f9;
@@ -248,10 +255,11 @@
   .login-overlay{position:fixed;inset:0;z-index:9999;
     background:linear-gradient(135deg,#0f2338 0%,#17324e 50%,#1d3f61 100%);
     display:flex;align-items:center;justify-content:center;padding:20px;
-    font-family:inherit}
+    font-family:inherit;overflow:hidden}
   .login-card{background:#fff;border-radius:18px;width:min(420px,100%);
     padding:34px 30px 24px;box-shadow:0 30px 80px rgba(0,0,0,.45);
-    animation:loginPop .35s cubic-bezier(.2,.8,.3,1)}
+    animation:loginPop .35s cubic-bezier(.2,.8,.3,1);
+    position:relative;z-index:1}
   @keyframes loginPop{from{transform:translateY(24px) scale(.95);opacity:0}to{transform:none;opacity:1}}
   .login-brand{text-align:center;margin-bottom:26px}
   .login-mark{width:64px;height:64px;border-radius:50%;
@@ -284,6 +292,22 @@
   .login-btn svg{width:18px;height:18px}
   .login-foot{text-align:center;font-size:10.5px;color:#93a2b3;
     margin-top:20px;letter-spacing:.5px}
+
+  /* LOGO DE FUNDO DO LOGIN (puxa automaticamente "logo.png") */
+  .login-bg-logo{
+    position:absolute;
+    top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    width:auto;
+    max-width:min(620px,75vw);
+    max-height:min(620px,75vh);
+    opacity:.16;
+    z-index:0;
+    pointer-events:none;
+    user-select:none;
+    object-fit:contain;
+    filter:drop-shadow(0 12px 40px rgba(0,0,0,.4));
+  }
 
   /* MODAL DE RECONHECIMENTO FACIAL */
   .face-overlay{position:fixed;inset:0;background:rgba(12,24,38,.88);
@@ -373,6 +397,7 @@
      TELA DE LOGIN
      ============================================================ -->
 <div class="login-overlay" id="loginOverlay">
+  <img src="logo.png" alt="" class="login-bg-logo" onerror="this.style.display='none'">
   <div class="login-card">
     <div class="login-brand">
       <div class="login-mark">PM</div>
@@ -497,6 +522,10 @@
   <button class="top-btn" id="btnConfig" title="Parâmetros de cálculo">
     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     Parâmetros
+  </button>
+  <button class="top-btn" id="btnInstall" style="display:none" title="Instalar aplicativo">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/></svg>
+    Instalar
   </button>
 </header>
 
@@ -1345,7 +1374,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 936|1_OFXwhVRs8s12XGEL5Z_ykJUO2xOxDv-|TOYOTA|—|GB3|0.385|0.24|1.916|0.384
 937|1azD0vki6tXiXOgQ4fqNZRSHmyJ_zlT2d|TOYOTA|—|GB5|0.4|0.021|0.666|0.469
 938|1rTaEiLhlvKVAzWSURRSGcoaQ2uwxIzEq|TOYOTA|—|DA2|0.47|0.173|2.069|0.425
-939|1ZBVSeQa7RVN2sjrzKWAPmVJItRDZRdX6|VW|KOMBI 98|7X0253101C;7X0131703A|0.63|1.626|0|0.222
+939|1ZBVSeQa7RVN2sjrzKWAPmVJItRDZRdX6|VW|KOMBI 98|7X0253101C|7X0131703A|0.63|1.626|0|0.222
 940|1IZxClt4Kn5jFrPZH18FnSngUGMFde5ea|TOYOTA|—|R20050|0.435|0.021|5.012|0.709
 941|1KM4zB1XoIs7lwTbWZfwx6peCiHlQXHUn|KIA|6CC|HGED|0.165|1.1|0|0.062
 942|1MHgzDFftFiPLp_EdQE_klWJIoqBBLywi|KIA|6CC|TGRG|0.23|1.758|0|0
@@ -2573,7 +2602,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 2267|1g2hmRjK3VwgNDgt0CFozoJlp2FQ8FluA|HONDA|NEW FIT 2°|2ZGK0019;835C00U|0.31|0.531|0.193|0.48
 2268|1aD7iwR_7EdPvmWgffFE-RZjrlkQnDYV6|BMW|—|7565334;588740|0.455|8.69|0|0.511
 2269|1pFF9YBUndkYPy6v3hqcHCYjjigayO1qg|FORD|ECO|PROTOTIPO;BSRH8|0.625|3.089|0|0.269
-2270|1vHQiKOBmxfPH_59CG04aIQczf5hJx19f|VW|—|8S0131701B;8S0166AA;80744705|0.88|9.156|0|0.585
+2270|1vHQiKOBmxfPH_59CG04aIQczf5hJx19f|VW|—|8S0131701B|8S0166AA;80744705|0.88|9.156|0|0.585
 2271|18z1_b4UfMCfkuSdKhRa4Bql8NeJKa9J5|VW|—|8V0131701A;8J0166AB;80684805|0.39|10.2|0|0.724
 2272|1ozB7eAcuq23NraMucgohcOEIWYauYPbU|M. BENZ|AMG|KTA049;A2224907000|0.42|7.902|0|0.371
 2274|157jxZvLfU2zFw2R27zV6RiB2AAo_D0Su|TOYOTA|COROLLA DUPLA|RU9;RV1|0.48|0.519|0.807|0.347
@@ -2601,7 +2630,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 2300||CHEROKEE|AUT|654W5061|1.09|1.263|0|0.169
 2302||M. BENZ|—|KT4002|0.555|0.03|2.295|0.516
 2303||M. BENZ|—|KTA027;A1714901414;2238695001|0.63|1.37|1.29|0.88
-2304|1FTUxd-QjvXkYtfEVa6tOA4HlVr9pP-rw|VW|PASSAT 1°|8D0131701EK;8D178BG|0.255|5.486|0|0.356
+2304|1FTUxd-QjvXkYtfEVa6tOA4HlVr9pP-rw|VW|PASSAT 1°|8D0131701EK|8D178BG|0.255|5.486|0|0.356
 2305|1BuyKFRkIKFn0VYMSsmpqVTnAmp6qr_pz|FORD|RANGER|AB395E211EE;AB395F297EC|1.175|1.773|2.299|0.091
 2306|1ugYnuHf1hD6fq2KJ8ICnY4PieaKUcDnZ|RENAULT|SANDERO 3CC|208A02717R;HMLGT3891R|0.705|1.1|0|0.275
 2307|1UPKSWdBSyYxhy9GUeIm1j-KrRwceX9GJ|M. BENZ|—|A2474913600;KT0411|0.455|10.1|0|0.571
@@ -2630,7 +2659,7 @@ const RAW = `0||FIAT|ALFA|46743655|0.685|2.021|0|0.414
 2334||VW|—|RZ02228064122;7L6131690J|0.785|0.059|6.939|0.008
 2335||CHERRY|—|153AAS;153000136AA;ASS2BD|0.57|0.604|0|0.262
 2336||GM|SPIN|94730149;904565236|0.735|2.768|0|0.166
-2338|1Gl7eLZQ6xcLwkDTE0lrrFQF71APuJELS|VW|TURBO|8S131701B;8S0166AA;80744705|0.9|9.418|0|0.497
+2338|1Gl7eLZQ6xcLwkDTE0lrrFQF71APuJELS|VW|TURBO|8S131701B|8S0166AA;80744705|0.9|9.418|0|0.497
 2339|1_dpJsHjcP0KBi6w_ZciocgBISA2UEOtU|OUTROS|—|96819211;TL0;D1H02|0.76|1.806|0|0.168
 2340|1qt9V2DU_lF9M0GiGcb2klnERJpR35-yL|FORD|FOCUS COLETOR|9M555F297BA;9M555G232BA|1.09|1.719|0|0.163
 2341|1bhn4MfKFquRVsUhWdJt-CFS7w_0IK6Ze|FORD|FOCUS|DS935G232CB|0.81|3.895|0|0.111
@@ -4805,6 +4834,116 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
   clearFields();
   render();
+})();
+</script>
+
+<!-- ============================================================
+     PWA — MANIFEST + INSTALAÇÃO COMO APP
+     ============================================================ -->
+<script>
+(function pwaSetup(){
+  'use strict';
+
+  // 1) Injeta o manifest dinamicamente, apontando para "logo.png" como ícone
+  try {
+    const logoUrl = new URL('logo.png', location.href).href;
+    const baseUrl = location.href.split('?')[0].split('#')[0];
+    const scopeUrl = baseUrl.replace(/[^/]*$/, '');
+    const manifest = {
+      name: "Paizão Metais · Consulta de Catalisadores",
+      short_name: "Paizão Metais",
+      description: "Sistema de consulta técnica de catalisadores",
+      start_url: baseUrl,
+      scope: scopeUrl,
+      display: "standalone",
+      orientation: "any",
+      background_color: "#0f2338",
+      theme_color: "#0f2338",
+      lang: "pt-BR",
+      icons: [
+        { src: logoUrl, sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: logoUrl, sizes: "512x512", type: "image/png", purpose: "any" },
+        { src: logoUrl, sizes: "512x512", type: "image/png", purpose: "maskable" }
+      ]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+    const url = URL.createObjectURL(blob);
+    let link = document.getElementById('pwaManifest');
+    if (!link) {
+      link = document.createElement('link');
+      link.id = 'pwaManifest';
+      link.rel = 'manifest';
+      document.head.appendChild(link);
+    }
+    link.href = url;
+  } catch(e){ /* silencioso */ }
+
+  // 2) Botão "Instalar" — aparece somente quando o app NÃO está instalado
+  const btnInstall = document.getElementById('btnInstall');
+  if (!btnInstall) return;
+
+  let deferredPrompt = null;
+
+  function isStandalone(){
+    return (window.matchMedia && (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      window.matchMedia('(display-mode: minimal-ui)').matches ||
+      window.matchMedia('(display-mode: window-controls-overlay)').matches
+    )) || window.navigator.standalone === true;
+  }
+
+  // Se já está instalado (rodando em modo app), esconde o botão de vez
+  if (isStandalone()){
+    btnInstall.style.display = 'none';
+    return;
+  }
+
+  // Guarda o evento de instalação disponibilizado pelo navegador
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    btnInstall.style.display = 'inline-flex';
+  });
+
+  // Clique no botão → dispara a instalação automática
+  btnInstall.addEventListener('click', async () => {
+    if (!deferredPrompt){
+      // Navegador não expôs o prompt (iOS, Firefox, etc.)
+      alert(
+        'A instalação automática não está disponível neste navegador.\n\n' +
+        'Para instalar, use o menu do navegador:\n' +
+        '• Android/Chrome: menu ⋮ → "Instalar aplicativo" ou "Adicionar à tela inicial"\n' +
+        '• iPhone/Safari: botão Compartilhar → "Adicionar à Tela de Início"'
+      );
+      return;
+    }
+    try {
+      deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      // Some após o usuário instalar (ou recusar) — só aparece quando não instalado
+      btnInstall.style.display = 'none';
+    } catch(err){
+      btnInstall.style.display = 'none';
+    }
+  });
+
+  // Quando o app for instalado, esconde o botão permanentemente
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    btnInstall.style.display = 'none';
+  });
+
+  // Reforço: se a página mudar para modo standalone (instalou), esconde
+  if (window.matchMedia){
+    try {
+      const mq = window.matchMedia('(display-mode: standalone)');
+      const handler = () => { if (mq.matches) btnInstall.style.display = 'none'; };
+      if (mq.addEventListener) mq.addEventListener('change', handler);
+      else if (mq.addListener) mq.addListener(handler);
+    } catch(_){}
+  }
 })();
 </script>
 
