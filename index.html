@@ -3744,7 +3744,10 @@ function pesqFiltered(){
 
 function pesqCardHTML(it){
   const c = it._c;
-  const cod = (it.cod && it.cod[0]) ? it.cod[0] : '—';
+  // Mostrar TODOS os códigos da peça (não apenas o primeiro)
+  const codList = (it.cod && it.cod.length) ? it.cod : ['—'];
+  const cod = codList.join(' · ');
+  const codTitle = codList.join(' | ');
   const marcaModelo = [it.marca, it.modelo && it.modelo !== '—' ? it.modelo : ''].filter(Boolean).join(' / ');
   const img = it.img
     ? `<img loading="lazy" src="${imgSrc(it.img, 'w400')}" alt="" onerror="this.style.display='none'">`
@@ -3754,7 +3757,7 @@ function pesqCardHTML(it){
     : `<span class="price muted">—</span>`;
   return `<article class="pesq-card" data-ref="${esc(it.ref)}">
     <div class="img">${img}</div>
-    <div class="cod">${esc(cod)}</div>
+    <div class="cod" title="${esc(codTitle)}">${esc(cod)}</div>
     <div class="name">${esc(marcaModelo || 'Modelo não informado')}</div>
     <div class="peso">${fmtNum(it.peso,3)} kg</div>
     <div class="foot">
