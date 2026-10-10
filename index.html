@@ -6624,6 +6624,16 @@ document.getElementById('btnCota').addEventListener('click', () => {
           'Total: ' + fmtMoney(totalGeral) + '\n' +
           'Itens: ' + filteredItems.length + '\n\n' +
           'O PDF está disponível na seção "Pedidos Salvos".');
+
+    // ===== LIMPEZA DO CARRINHO APÓS SALVAR O PEDIDO E O PDF =====
+    cartItems.length = 0;
+    saveCart();
+    if (cartFilterNome) cartFilterNome.value = '';
+    if (cartFilterFone) cartFilterFone.value = '';
+    if (cartFilterDataInicio) cartFilterDataInicio.value = '';
+    if (cartFilterDataFim) cartFilterDataFim.value = '';
+    renderCart();
+    // =============================================================
   }
 
   // Função auxiliar para escapar HTML
