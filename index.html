@@ -4300,7 +4300,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if(!Array.isArray(u.permissions)){
       u.permissions = u.type === 'ADM'
         ? ALL_TABS.slice()
-        : (u.type === 'COMPRADOR' ? ['catalisador','pesquisa','cotacoes','carrinho'] : ['catalisador','pesquisa','carrinho']);
+        : ['pesquisa', 'po', 'carrinho'];
     }
     if(u.type === 'ADM' && Array.isArray(u.permissions) && !u.permissions.includes('novo')){
       u.permissions.push('novo');
@@ -5101,7 +5101,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
               role: 'comprador',
               type: 'COMPRADOR',
               label: 'Comprador',
-              permissions: ['pesquisa'],
+              permissions: ['pesquisa', 'po', 'carrinho'],
               selfie: selfieData || '',
               nome: nome
             };
@@ -5112,7 +5112,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
             usuarioCriadoMsg = '\n\n✅ Usuário criado automaticamente:' +
               '\nUsuário: ' + userKey +
               '\nSenha: '   + senha +
-              '\nAcesso: Pesquisa';
+              '\nAcesso: Pesquisa, Pó e Carrinho';
           }
         }
       }catch(e){ /* silencioso — não quebra o fluxo original */ }
@@ -5257,7 +5257,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     usrSelfiePrev.src = '';
     usrSelfiePrev.style.display = 'none';
     usrSelfieRemove.classList.add('hidden');
-    setAllowedToUI(['catalisador','pesquisa','cotacoes','carrinho']);
+    setAllowedToUI(['pesquisa', 'po', 'carrinho']);
     editUser = null;
     usrCancelarBtn.classList.add('hidden');
     usrSalvarBtn.lastChild.textContent = ' Salvar';
@@ -5408,11 +5408,11 @@ document.getElementById('btnCota').addEventListener('click', () => {
     const t = usrTipo.value;
     const defaults = {
       ADM: ['catalisador','novo','po','pesquisa','cadastro','cotacoes','usuarios','auditoria','carrinho'],
-      COMPRADOR: ['catalisador','po','pesquisa','cotacoes','carrinho'],
-      AGREGADO: ['catalisador','po','pesquisa','carrinho'],
-      CLIENTE: ['catalisador','po','pesquisa','carrinho'],
-      TRIAGEM: ['carrinho'],
-      FINANCEIRO: ['carrinho']
+      COMPRADOR: ['pesquisa', 'po', 'carrinho'],
+      AGREGADO: ['pesquisa', 'po', 'carrinho'],
+      CLIENTE: ['pesquisa', 'po', 'carrinho'],
+      TRIAGEM: ['pesquisa', 'po', 'carrinho'],
+      FINANCEIRO: ['pesquisa', 'po', 'carrinho']
     };
     setAllowedToUI(defaults[t] || []);
   });
