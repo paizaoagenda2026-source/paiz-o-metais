@@ -11,6 +11,7 @@
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="apple-touch-icon" href="logo.png">
 <link rel="manifest" id="pwaManifest">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --navy:#0f2338;--navy-2:#17324e;--steel:#5b7189;--line:#e2e7ee;--bg:#f4f6f9;
@@ -384,6 +385,8 @@
   .type-badge.COMPRADOR{background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe}
   .type-badge.AGREGADO{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
   .type-badge.CLIENTE{background:#fef3c7;color:#b45309;border:1px solid #fcd34d}
+  .type-badge.TRIAGEM{background:#fce7f3;color:#9d174d;border:1px solid #fbcfe8}
+  .type-badge.FINANCEIRO{background:#cffafe;color:#155e75;border:1px solid #a5f3fc}
   .perm-chip{display:inline-block;font-size:10.5px;font-weight:600;background:#f1f5f9;color:#475569;
     border:1px solid #e2e8f0;padding:1px 6px;border-radius:6px;margin:1px 2px 1px 0}
 
@@ -1006,6 +1009,8 @@
             <option value="COMPRADOR">COMPRADOR</option>
             <option value="AGREGADO">AGREGADO</option>
             <option value="CLIENTE">CLIENTE</option>
+            <option value="TRIAGEM">TRIAGEM</option>
+            <option value="FINANCEIRO">FINANCEIRO</option>
           </select>
         </div>
       </div>
@@ -1191,6 +1196,40 @@
     <div class="cart-total-box" id="cartTotalBox" style="display:none;">
       <span class="label">Total do Carrinho</span>
       <span class="value" id="cartTotalValue">R$ 0,00</span>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       PEDIDOS SALVOS — Histórico de pedidos gerados
+       ============================================================ -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Pedidos Salvos</h2>
+      <span class="sub" id="pedidosSub">Histórico de pedidos gerados</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:140px">Número</th>
+            <th style="width:160px">Data/Hora</th>
+            <th>Cliente</th>
+            <th>Fone</th>
+            <th style="width:90px;text-align:right">Itens</th>
+            <th style="width:130px;text-align:right">Total</th>
+            <th style="width:130px;text-align:center">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="pedidosTbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hidden" id="pedidosEmpty">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <h3>Nenhum pedido salvo</h3>
+      <p>Gere um PDF no carrinho para salvar um novo pedido.</p>
+    </div>
+    <div class="footnote">
+      O acesso aos PDFs dos pedidos é restrito aos usuários <b>ADM</b>, <b>Programador</b>, <b>Triagem</b> e <b>Financeiro</b>.
     </div>
   </section>
 </main>
@@ -5341,8 +5380,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if(!perms.length){ alert('Selecione ao menos uma permissão de acesso.'); return; }
 
     const finalUser = editUser || user;
-    const labelMap = { ADM: 'Administrador', COMPRADOR: 'Comprador', AGREGADO: 'Agregado', CLIENTE: 'Cliente' };
-    const roleMap = { ADM: 'admin', COMPRADOR: 'comprador', AGREGADO: 'agregado', CLIENTE: 'cliente' };
+    const labelMap = { ADM: 'Administrador', COMPRADOR: 'Comprador', AGREGADO: 'Agregado', CLIENTE: 'Cliente', TRIAGEM: 'Triagem', FINANCEIRO: 'Financeiro' };
+    const roleMap = { ADM: 'admin', COMPRADOR: 'comprador', AGREGADO: 'agregado', CLIENTE: 'cliente', TRIAGEM: 'triagem', FINANCEIRO: 'financeiro' };
 
     const existing = USERS[finalUser] || {};
     USERS[finalUser] = {
@@ -5371,7 +5410,9 @@ document.getElementById('btnCota').addEventListener('click', () => {
       ADM: ['catalisador','novo','po','pesquisa','cadastro','cotacoes','usuarios','auditoria','carrinho'],
       COMPRADOR: ['catalisador','po','pesquisa','cotacoes','carrinho'],
       AGREGADO: ['catalisador','po','pesquisa','carrinho'],
-      CLIENTE: ['catalisador','po','pesquisa','carrinho']
+      CLIENTE: ['catalisador','po','pesquisa','carrinho'],
+      TRIAGEM: ['carrinho'],
+      FINANCEIRO: ['carrinho']
     };
     setAllowedToUI(defaults[t] || []);
   });
@@ -5950,11 +5991,20 @@ document.getElementById('btnCota').addEventListener('click', () => {
   'use strict';
 
   const LS_KEY_CART = 'paizao_carrinho';
+  const LS_KEY_PEDIDOS = 'paizao_pedidos';
+  const LS_KEY_PEDIDO_COUNTER = 'paizao_pedido_counter';
+
   let cartItems = [];
   try {
     const saved = JSON.parse(localStorage.getItem(LS_KEY_CART) || '[]');
     if (Array.isArray(saved)) cartItems = saved;
   } catch(e){ cartItems = []; }
+
+  let pedidosSalvos = [];
+  try {
+    const savedPed = JSON.parse(localStorage.getItem(LS_KEY_PEDIDOS) || '[]');
+    if (Array.isArray(savedPed)) pedidosSalvos = savedPed;
+  } catch(e){ pedidosSalvos = []; }
 
   const $ = id => document.getElementById(id);
 
@@ -5970,6 +6020,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
   const cartFilterBtn = $('cartFilterBtn');
   const cartFilterLimparBtn = $('cartFilterLimparBtn');
   const cartPdfBtn = $('cartPdfBtn');
+
+  const pedidosTbody = $('pedidosTbody');
+  const pedidosEmpty = $('pedidosEmpty');
+  const pedidosSub   = $('pedidosSub');
 
   // Função para formatar moeda
   function fmtMoney(n) {
@@ -5989,16 +6043,205 @@ document.getElementById('btnCota').addEventListener('click', () => {
     } catch(e) { /* silencioso */ }
   }
 
+  function savePedidos() {
+    try {
+      localStorage.setItem(LS_KEY_PEDIDOS, JSON.stringify(pedidosSalvos));
+      return true;
+    } catch(e) {
+      return false;
+    }
+  }
+
+  // Gera número único de pedido
+  function gerarNumeroPedido() {
+    let counter = parseInt(localStorage.getItem(LS_KEY_PEDIDO_COUNTER) || '0', 10);
+    if (!isFinite(counter) || counter < 0) counter = 0;
+    let numero;
+    let tentativas = 0;
+    do {
+      counter++;
+      numero = 'PED-' + String(counter).padStart(5, '0');
+      tentativas++;
+      if (tentativas > 10000) throw new Error('Não foi possível gerar um número único.');
+    } while (pedidosSalvos.some(p => p.numero === numero));
+    try { localStorage.setItem(LS_KEY_PEDIDO_COUNTER, String(counter)); } catch(e){}
+    return numero;
+  }
+
+  // Verifica permissão para abrir o PDF
+  function podeVerPedidoPDF() {
+    if (!window.currentUser) return false;
+    if (window.currentUser === 'PROGRAMADOR') return true;
+    const t = String(window.currentUserType || '').toUpperCase();
+    return t === 'ADM' || t === 'TRIAGEM' || t === 'FINANCEIRO';
+  }
+
+  // =========================================================
+  // CONVERSÃO DE BASE64 / DATA URI EM BLOB (CORRIGIDO)
+  // =========================================================
+  function base64ToBlob(base64, mime) {
+    const byteChars = atob(base64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      byteNumbers[i] = byteChars.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mime || 'application/pdf' });
+  }
+
+  function dataUriToBlob(dataUri) {
+    if (!dataUri) return null;
+    if (dataUri.startsWith('data:')) {
+      const commaIdx = dataUri.indexOf(',');
+      if (commaIdx < 0) return null;
+      const header = dataUri.substring(0, commaIdx);
+      const data = dataUri.substring(commaIdx + 1);
+      let mime = 'application/pdf';
+      const mimeMatch = header.match(/data:([^;,]+)/);
+      if (mimeMatch) mime = mimeMatch[1];
+      if (!header.includes('base64')) {
+        try { return new Blob([decodeURIComponent(data)], { type: mime }); }
+        catch(e) { return null; }
+      }
+      try { return base64ToBlob(data, mime); }
+      catch(e) { return null; }
+    }
+    try { return base64ToBlob(dataUri, 'application/pdf'); }
+    catch(e) { return null; }
+  }
+
+  function openPedidoPDF(numero) {
+    const pedido = pedidosSalvos.find(p => p.numero === numero);
+    if (!pedido) { alert('Pedido não encontrado.'); return; }
+    if (!podeVerPedidoPDF()) {
+      alert('Você não tem permissão para abrir este PDF.\n\nApenas usuários ADM, Programador, Triagem ou Financeiro podem visualizar.');
+      if (window.auditLog) {
+        try { window.auditLog('PEDIDO_PDF_NEGADO', 'Tentou abrir ' + numero + ' sem permissão'); } catch(_){}
+      }
+      return;
+    }
+    try {
+      if (window.auditLog) {
+        try { window.auditLog('PEDIDO_PDF_ABERTO', 'Abriu PDF do pedido ' + numero); } catch(_){}
+      }
+
+      if (!pedido.pdf) {
+        alert('PDF não disponível para este pedido.');
+        return;
+      }
+
+      let blob = null;
+      if (pedido.pdf.startsWith('data:')) {
+        blob = dataUriToBlob(pedido.pdf);
+      } else {
+        try { blob = base64ToBlob(pedido.pdf, 'application/pdf'); } catch(e) { blob = null; }
+      }
+
+      if (!blob) {
+        alert('Erro ao processar o PDF do pedido.');
+        return;
+      }
+
+      const url = URL.createObjectURL(blob);
+
+      // Método 1: link programático (mais confiável que window.open)
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      try { a.click(); } catch(e) {}
+      document.body.removeChild(a);
+
+      // Fallback: se o navegador bloquear nova aba, força download
+      setTimeout(() => {
+        try {
+          const w = window.open(url, '_blank');
+          if (!w || w.closed || typeof w.closed === 'undefined') {
+            const dl = document.createElement('a');
+            dl.href = url;
+            dl.download = 'pedido_' + numero + '.pdf';
+            dl.style.display = 'none';
+            document.body.appendChild(dl);
+            dl.click();
+            document.body.removeChild(dl);
+          }
+        } catch(_) {}
+      }, 150);
+
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 120000);
+    } catch(e) {
+      alert('Erro ao abrir o PDF: ' + e.message);
+    }
+  }
+  window.openPedidoPDF = openPedidoPDF;
+
+  function renderPedidos() {
+    if (!pedidosTbody) return;
+    if (pedidosSub) {
+      const n = pedidosSalvos.length;
+      pedidosSub.textContent = n + ' pedido' + (n === 1 ? '' : 's') + ' salvo' + (n === 1 ? '' : 's');
+    }
+    if (pedidosSalvos.length === 0) {
+      pedidosTbody.innerHTML = '';
+      if (pedidosEmpty) pedidosEmpty.classList.remove('hidden');
+      return;
+    }
+    if (pedidosEmpty) pedidosEmpty.classList.add('hidden');
+    pedidosTbody.innerHTML = pedidosSalvos.map(p => {
+      const d = new Date(p.data);
+      const dataStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+      return `<tr>
+        <td><span class="code-chip primary">${escHtml(p.numero)}</span></td>
+        <td>${escHtml(dataStr)}</td>
+        <td>${escHtml(p.userNome || '')}</td>
+        <td>${escHtml(p.fone || '')}</td>
+        <td style="text-align:right">${(p.itens||[]).length}</td>
+        <td style="text-align:right;font-weight:700;color:#15803d">${fmtMoney(p.total||0)}</td>
+        <td style="text-align:center">
+          <button class="row-edit" data-pedido-pdf="${escHtml(p.numero)}" title="Abrir PDF" aria-label="Abrir PDF">📄</button>
+          <button class="row-edit" data-pedido-del="${escHtml(p.numero)}" title="Excluir pedido" aria-label="Excluir" style="background:#fee2e2;color:#b91c1c;border-color:#fecaca">🗑</button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    pedidosTbody.querySelectorAll('[data-pedido-pdf]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openPedidoPDF(btn.dataset.pedidoPdf);
+      });
+    });
+    pedidosTbody.querySelectorAll('[data-pedido-del]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const numero = btn.dataset.pedidoDel;
+        if (!confirm('Excluir o pedido ' + numero + '?\n\nO PDF correspondente também será removido.')) return;
+        if (!podeVerPedidoPDF()) {
+          alert('Você não tem permissão para excluir pedidos.');
+          return;
+        }
+        const idx = pedidosSalvos.findIndex(p => p.numero === numero);
+        if (idx >= 0) {
+          pedidosSalvos.splice(idx, 1);
+          savePedidos();
+          if (window.auditLog) {
+            try { window.auditLog('PEDIDO_EXCLUIDO', 'Pedido ' + numero); } catch(_){}
+          }
+          renderPedidos();
+        }
+      });
+    });
+  }
+
   // Função para obter o nome e telefone do usuário logado a partir do cadastro de clientes
   function getUserInfo() {
     const userName = window.currentUserNome || window.currentUser;
     if (!userName) return { nome: 'Usuário não logado', fone: '' };
 
-    // Tenta encontrar o cliente pelo nome
     try {
       const clientes = JSON.parse(localStorage.getItem('paizao_clientes') || '[]');
       if (Array.isArray(clientes)) {
-        // Busca pelo nome exato (case insensitive)
         const cliente = clientes.find(c => 
           c.nome && c.nome.toLowerCase() === userName.toLowerCase()
         );
@@ -6008,15 +6251,12 @@ document.getElementById('btnCota').addEventListener('click', () => {
       }
     } catch(e) { /* silencioso */ }
 
-    // Se não encontrar, retorna o nome de usuário e vazio
     return { nome: userName, fone: '' };
   }
 
   // Função para atualizar os campos de nome e telefone no carrinho
   function updateCartUserInfo() {
     // Esta função é chamada quando o usuário loga
-    // Os campos de nome e telefone são preenchidos no momento de adicionar ao carrinho
-    // e também são usados para filtrar
   }
 
   // Função para adicionar item ao carrinho
@@ -6028,18 +6268,15 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     const userInfo = getUserInfo();
 
-    // Verifica se o item já está no carrinho com os mesmos códigos
     const existingIndex = cartItems.findIndex(cartItem => 
       cartItem.ref === item.ref && 
       JSON.stringify(cartItem.codigos) === JSON.stringify(item.cod.slice(0, 3))
     );
 
     if (existingIndex >= 0) {
-      // Se já existe, apenas incrementa a quantidade
       cartItems[existingIndex].quantidade += 1;
       cartItems[existingIndex].total = cartItems[existingIndex].quantidade * cartItems[existingIndex].unitario;
     } else {
-      // Adiciona novo item
       const codigos = (item.cod || []).slice(0, 3);
       const unitario = item._c ? item._c.rspeca : 0;
       
@@ -6047,7 +6284,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
         ref: item.ref,
         nome: userInfo.nome,
         fone: userInfo.fone,
-        data: new Date().toISOString().split('T')[0], // Data no formato YYYY-MM-DD
+        data: new Date().toISOString().split('T')[0],
         codigos: codigos,
         quantidade: 1,
         unitario: unitario,
@@ -6058,7 +6295,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     saveCart();
     renderCart();
     
-    // Abre a aba do carrinho
     const cartTab = document.querySelector('.tab[data-tab="carrinho"]');
     if (cartTab) {
       cartTab.click();
@@ -6067,7 +6303,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
   // Função para renderizar o carrinho
   function renderCart() {
-    // Aplica os filtros
     let filteredItems = [...cartItems];
 
     const filterNome = cartFilterNome.value.trim().toLowerCase();
@@ -6094,7 +6329,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       filteredItems = filteredItems.filter(item => item.data <= filterDataFim);
     }
 
-    // Renderiza a tabela
     if (filteredItems.length === 0) {
       cartTbody.innerHTML = '';
       cartEmpty.classList.remove('hidden');
@@ -6109,13 +6343,11 @@ document.getElementById('btnCota').addEventListener('click', () => {
     let totalGeral = 0;
 
     filteredItems.forEach((item, index) => {
-      // Encontra o índice real no array original para operações
       const realIndex = cartItems.findIndex(cartItem => 
         cartItem.ref === item.ref && 
         JSON.stringify(cartItem.codigos) === JSON.stringify(item.codigos)
       );
 
-      // Garante que os códigos estão no formato correto
       const cod1 = item.codigos[0] || '';
       const cod2 = item.codigos[1] || '';
       const cod3 = item.codigos[2] || '';
@@ -6141,7 +6373,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     cartTbody.innerHTML = html;
     cartTotalValue.textContent = fmtMoney(totalGeral);
 
-    // Adiciona eventos aos campos de quantidade
     cartTbody.querySelectorAll('.cart-qtd').forEach(input => {
       input.addEventListener('input', function() {
         const index = parseInt(this.dataset.index, 10);
@@ -6155,11 +6386,9 @@ document.getElementById('btnCota').addEventListener('click', () => {
           cartItems[index].quantidade = qtd;
           cartItems[index].total = qtd * cartItems[index].unitario;
           
-          // Atualiza o campo total na tela
           const totalInput = this.closest('tr').querySelector('.cart-total');
           totalInput.value = fmtMoney(cartItems[index].total);
 
-          // Atualiza o total geral
           let totalGeral = 0;
           cartItems.forEach(item => totalGeral += item.total || 0);
           cartTotalValue.textContent = fmtMoney(totalGeral);
@@ -6169,7 +6398,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       });
     });
 
-    // Adiciona eventos aos botões de remover
     cartTbody.querySelectorAll('[data-cart-del]').forEach(btn => {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -6185,9 +6413,9 @@ document.getElementById('btnCota').addEventListener('click', () => {
     });
   }
 
-  // Função para gerar PDF
+  // Função para gerar PDF com jsPDF e salvar pedido
   function gerarPDF() {
-    // Aplica os mesmos filtros
+    // Aplica os filtros
     let filteredItems = [...cartItems];
 
     const filterNome = cartFilterNome.value.trim().toLowerCase();
@@ -6219,92 +6447,183 @@ document.getElementById('btnCota').addEventListener('click', () => {
       return;
     }
 
-    // Obtém informações do usuário logado
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      alert('Biblioteca de PDF não carregada. Verifique sua conexão com a internet e tente novamente.');
+      return;
+    }
+
     const userInfo = getUserInfo();
 
-    // Calcula o total
     let totalGeral = 0;
     filteredItems.forEach(item => totalGeral += item.total || 0);
 
-    // Cria o HTML do PDF
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Orçamento - Paizão Metais</title>
-        <style>
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 30px; color: #16202c; }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0f2338; padding-bottom: 20px; }
-          .header h1 { font-size: 24px; color: #0f2338; margin-bottom: 5px; }
-          .header p { font-size: 14px; color: #5a6a7d; }
-          .user-info { background: #f4f6f9; border: 1px solid #e2e7ee; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
-          .user-info p { margin-bottom: 5px; font-size: 14px; }
-          .user-info strong { color: #0f2338; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }
-          thead th { background: #0f2338; color: #fff; padding: 10px 8px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
-          tbody td { padding: 8px; border-bottom: 1px solid #eef2f6; }
-          tbody tr:nth-child(even) { background: #fafbfc; }
-          .total-box { text-align: right; font-size: 18px; font-weight: 700; color: #15803d; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 15px 20px; margin-top: 20px; }
-          .footer { text-align: center; margin-top: 30px; font-size: 11px; color: #93a2b3; border-top: 1px solid #e2e7ee; padding-top: 15px; }
-          .date { text-align: right; font-size: 12px; color: #5a6a7d; margin-bottom: 10px; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>PAIZÃO METAIS</h1>
-          <p>Consulta Técnica de Catalisadores</p>
-        </div>
+    // Gera número único do pedido
+    let numeroPedido;
+    try {
+      numeroPedido = gerarNumeroPedido();
+    } catch (e) {
+      alert('Erro ao gerar número do pedido: ' + e.message);
+      return;
+    }
 
-        <div class="user-info">
-          <p><strong>Cliente:</strong> ${escHtml(userInfo.nome)}</p>
-          <p><strong>Telefone:</strong> ${escHtml(userInfo.fone)}</p>
-        </div>
+    // Cria PDF
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const usableW = pageW - margin * 2;
 
-        <div class="date">Data de emissão: ${new Date().toLocaleDateString('pt-BR')}</div>
+    // Header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(15, 35, 56);
+    doc.text('PAIZÃO METAIS', pageW / 2, 20, { align: 'center' });
 
-        <table>
-          <thead>
-            <tr>
-              <th>Código 1</th>
-              <th>Código 2</th>
-              <th>Código 3</th>
-              <th>Qtd</th>
-              <th>R$ Unitário</th>
-              <th>R$ Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${filteredItems.map(item => `
-              <tr>
-                <td>${escHtml(item.codigos[0] || '')}</td>
-                <td>${escHtml(item.codigos[1] || '')}</td>
-                <td>${escHtml(item.codigos[2] || '')}</td>
-                <td>${item.quantidade}</td>
-                <td>${fmtMoney(item.unitario)}</td>
-                <td>${fmtMoney(item.total)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(90, 106, 125);
+    doc.text('Consulta Técnica de Catalisadores', pageW / 2, 26, { align: 'center' });
 
-        <div class="total-box">
-          Total Geral: ${fmtMoney(totalGeral)}
-        </div>
+    doc.setDrawColor(15, 35, 56);
+    doc.setLineWidth(0.6);
+    doc.line(margin, 30, pageW - margin, 30);
 
-        <div class="footer">
-          Paizão Metais · Sistema de Consulta Técnica · Documento gerado automaticamente
-        </div>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
+    // Order info
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(15, 35, 56);
+    doc.text('Pedido Nº: ' + numeroPedido, margin, 40);
+    doc.text('Data: ' + new Date().toLocaleDateString('pt-BR'), pageW - margin, 40, { align: 'right' });
+
+    // Client info box
+    doc.setFillColor(244, 246, 249);
+    doc.roundedRect(margin, 46, usableW, 18, 2, 2, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(22, 32, 44);
+    doc.text('Cliente: ' + (userInfo.nome || '-'), margin + 5, 53);
+    doc.text('Telefone: ' + (userInfo.fone || '-'), margin + 5, 60);
+
+    // Table
+    let y = 76;
+    const colX = [margin + 2, margin + 32, margin + 62, margin + 92, margin + 110, margin + 150];
+    const rowH = 7;
+
+    // header
+    doc.setFillColor(15, 35, 56);
+    doc.rect(margin, y, usableW, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('CÓDIGO 1', colX[0], y + 5.5);
+    doc.text('CÓDIGO 2', colX[1], y + 5.5);
+    doc.text('CÓDIGO 3', colX[2], y + 5.5);
+    doc.text('QTD', colX[3], y + 5.5);
+    doc.text('R$ UNITÁRIO', colX[4], y + 5.5);
+    doc.text('R$ TOTAL', colX[5], y + 5.5);
+    y += 8;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(22, 32, 44);
+    doc.setFontSize(9);
+    filteredItems.forEach((item, i) => {
+      if (y + rowH > pageH - 40) {
+        doc.addPage();
+        y = 20;
+      }
+      if (i % 2 === 0) {
+        doc.setFillColor(250, 251, 252);
+        doc.rect(margin, y, usableW, rowH, 'F');
+      }
+      const trunc = (s, max) => {
+        s = String(s || '');
+        return s.length > max ? s.slice(0, max - 1) + '…' : s;
+      };
+      doc.text(trunc(item.codigos[0], 16), colX[0], y + 4.8);
+      doc.text(trunc(item.codigos[1], 16), colX[1], y + 4.8);
+      doc.text(trunc(item.codigos[2], 16), colX[2], y + 4.8);
+      doc.text(String(item.quantidade), colX[3], y + 4.8);
+      doc.text(fmtMoney(item.unitario), colX[4], y + 4.8);
+      doc.text(fmtMoney(item.total), colX[5], y + 4.8);
+      y += rowH;
+    });
+
+    // Total
+    y += 4;
+    if (y + 14 > pageH - 15) { doc.addPage(); y = 20; }
+    doc.setFillColor(240, 253, 244);
+    doc.roundedRect(pageW - margin - 80, y, 80, 14, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(21, 128, 61);
+    doc.text('TOTAL GERAL:', pageW - margin - 76, y + 9);
+    doc.setFontSize(13);
+    doc.text(fmtMoney(totalGeral), pageW - margin - 4, y + 9, { align: 'right' });
+
+    // Footer
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(147, 162, 179);
+    doc.text('Paizão Metais · Sistema de Consulta Técnica · Documento gerado automaticamente', pageW / 2, pageH - 10, { align: 'center' });
+
+    // ===== CORREÇÃO: Usa arraybuffer (mais confiável que datauristring) =====
+    let pdfDataUri;
+    try {
+      const arrayBuffer = doc.output('arraybuffer');
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, chunk);
+      }
+      pdfDataUri = 'data:application/pdf;base64,' + btoa(binary);
+    } catch (e) {
+      alert('Erro ao processar o PDF: ' + e.message);
+      return;
+    }
+
+    // Cria pedido
+    const pedido = {
+      numero: numeroPedido,
+      data: new Date().toISOString(),
+      user: window.currentUser || '',
+      userNome: userInfo.nome,
+      fone: userInfo.fone,
+      itens: filteredItems.map(i => ({
+        codigos: [...i.codigos],
+        quantidade: i.quantidade,
+        unitario: i.unitario,
+        total: i.total
+      })),
+      total: totalGeral,
+      pdf: pdfDataUri
+    };
+
+    pedidosSalvos.unshift(pedido);
+
+    // Tenta salvar; se falhar por quota, remove e avisa
+    if (!savePedidos()) {
+      pedidosSalvos.shift();
+      alert(
+        'Não foi possível salvar o pedido: armazenamento local cheio.\n\n' +
+        'Exclua alguns pedidos antigos para liberar espaço e tente novamente.'
+      );
+      return;
+    }
+
+    // Auditoria
+    if (window.auditLog) {
+      try { window.auditLog('PEDIDO_GERADO', 'Pedido ' + numeroPedido + ' · Total: ' + fmtMoney(totalGeral) + ' · ' + filteredItems.length + ' item(s)'); } catch(_){}
+    }
+
+    renderPedidos();
+
+    alert('✅ Pedido ' + numeroPedido + ' salvo com sucesso!\n\n' +
+          'Total: ' + fmtMoney(totalGeral) + '\n' +
+          'Itens: ' + filteredItems.length + '\n\n' +
+          'O PDF está disponível na seção "Pedidos Salvos".');
   }
 
   // Função auxiliar para escapar HTML
@@ -6332,6 +6651,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
   // Inicializa o carrinho
   renderCart();
+  renderPedidos();
 
   // Expõe a função para atualizar informações do usuário
   window.updateCartUserInfo = updateCartUserInfo;
