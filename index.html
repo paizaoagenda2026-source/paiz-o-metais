@@ -783,6 +783,10 @@
         <div class="field"><label for="cadUf">UF</label><input type="text" id="cadUf" maxlength="2" placeholder="SP" autocomplete="off" style="text-transform:uppercase"></div>
         <div class="field"><label for="cadCpf">CPF</label><input type="text" id="cadCpf" placeholder="000.000.000-00" autocomplete="off"></div>
         <div class="field"><label for="cadRg">RG</label><input type="text" id="cadRg" autocomplete="off"></div>
+        <div class="field"><label for="cadBanco">Banco</label><input type="text" id="cadBanco" autocomplete="off"></div>
+        <div class="field"><label for="cadAgencia">Agência</label><input type="text" id="cadAgencia" autocomplete="off"></div>
+        <div class="field"><label for="cadConta">Conta</label><input type="text" id="cadConta" autocomplete="off"></div>
+        <div class="field"><label for="cadPix">PIX</label><input type="text" id="cadPix" autocomplete="off"></div>
       </div>
 
       <div class="field" style="margin-top:6px">
@@ -824,6 +828,10 @@
             <th>UF</th>
             <th>CPF</th>
             <th>RG</th>
+            <th>Banco</th>
+            <th>Agência</th>
+            <th>Conta</th>
+            <th>PIX</th>
             <th>Usuário / Senha</th>
             <th style="text-align:center;width:120px">Ações</th>
           </tr>
@@ -4272,7 +4280,16 @@ document.getElementById('btnCota').addEventListener('click', () => {
     });
   }
 
-  const MOVEMENT_SEQUENCE = ['right', 'left', 'up', 'down'];
+  // Função para embaralhar o array (Fisher-Yates)
+  function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  let MOVEMENT_SEQUENCE = [];
   const MOVE_LABEL = {
     up:    'olhe para CIMA ⬆️',
     down:  'olhe para BAIXO ⬇️',
@@ -4291,6 +4308,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
   let lastMovementTime = 0;
 
   function resetFaceState(){
+    // Embaralha a sequência de movimentos a cada tentativa
+    MOVEMENT_SEQUENCE = shuffleArray(['right', 'left', 'up', 'down']);
     baseline = null;
     baselineSamples = [];
     currentIdx = 0;
@@ -4564,6 +4583,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
   const cadUf           = $('cadUf');
   const cadCpf          = $('cadCpf');
   const cadRg           = $('cadRg');
+  const cadBanco        = $('cadBanco');
+  const cadAgencia      = $('cadAgencia');
+  const cadConta        = $('cadConta');
+  const cadPix          = $('cadPix');
   const cadSelfiePrev   = $('cadSelfiePreview');
   const cadSelfieRemove = $('cadSelfieRemove');
   const cadSalvarBtn    = $('cadSalvarBtn');
@@ -4603,6 +4626,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
     cadUf.value = '';
     cadCpf.value = '';
     cadRg.value = '';
+    cadBanco.value = '';
+    cadAgencia.value = '';
+    cadConta.value = '';
+    cadPix.value = '';
     selfieData = '';
     cadSelfiePrev.src = '';
     cadSelfiePrev.style.display = 'none';
@@ -4636,6 +4663,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
         <td>${escHtml(c.uf||'')}</td>
         <td>${escHtml(c.cpf||'')}</td>
         <td>${escHtml(c.rg||'')}</td>
+        <td>${escHtml(c.banco||'')}</td>
+        <td>${escHtml(c.agencia||'')}</td>
+        <td>${escHtml(c.conta||'')}</td>
+        <td>${escHtml(c.pix||'')}</td>
         <td class="cad-user-cell">
           <span class="code-chip primary">${escHtml(u.user||'—')}</span><br>
           <span class="code-chip">${escHtml(u.pass||'—')}</span>
@@ -4674,6 +4705,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
     cadUf.value     = c.uf || '';
     cadCpf.value    = c.cpf || '';
     cadRg.value     = c.rg || '';
+    cadBanco.value  = c.banco || '';
+    cadAgencia.value= c.agencia || '';
+    cadConta.value  = c.conta || '';
+    cadPix.value    = c.pix || '';
     selfieData = c.selfie || '';
     if(selfieData){
       cadSelfiePrev.src = selfieData;
@@ -4723,6 +4758,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
       uf: cadUf.value.trim().toUpperCase(),
       cpf: cadCpf.value.trim(),
       rg: cadRg.value.trim(),
+      banco: cadBanco.value.trim(),
+      agencia: cadAgencia.value.trim(),
+      conta: cadConta.value.trim(),
+      pix: cadPix.value.trim(),
       selfie: selfieData || ''
     };
 
