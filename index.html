@@ -433,6 +433,27 @@
     .login-field input{height:50px}
     .login-btn{height:50px}
   }
+
+  /* =========================================================
+     AUDITORIA — estilos específicos da nova aba
+     ========================================================= */
+  #view-auditoria .aud-action{
+    display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.4px;
+    padding:3px 9px;border-radius:20px;text-transform:uppercase;
+    background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;white-space:nowrap;
+  }
+  #view-auditoria .aud-action.aud-login{background:#d1fae5;color:#065f46;border-color:#6ee7b7}
+  #view-auditoria .aud-action.aud-logout{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+  #view-auditoria .aud-action.aud-limpa{background:#fef3c7;color:#b45309;border-color:#fcd34d}
+  #view-auditoria .aud-action.aud-exclui{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+  #view-auditoria .aud-action.aud-cria{background:#dbeafe;color:#1e40af;border-color:#bfdbfe}
+  #view-auditoria .aud-action.aud-edit{background:#ede9fe;color:#5b21b6;border-color:#ddd6fe}
+  #view-auditoria tbody tr{cursor:default}
+  #view-auditoria tbody tr:hover{background:#f8fafc}
+  #view-auditoria td.aud-mono{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12px;white-space:nowrap}
+  #view-auditoria td.aud-user{font-weight:700;color:var(--navy);white-space:nowrap}
+  #view-auditoria td.aud-details{font-size:12.5px;color:var(--txt-2);max-width:420px;word-break:break-word}
+  #view-auditoria td.aud-loc{font-size:12px;color:var(--txt-2);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -610,6 +631,7 @@
   <button class="tab" data-tab="cadastro">Cadastro</button>
   <button class="tab" data-tab="cotacoes">Cotações &amp; Parâmetros</button>
   <button class="tab" data-tab="usuarios">Usuários</button>
+  <button class="tab" data-tab="auditoria">Auditoria</button>
 </nav>
 
 <main class="wrap hidden" id="view-catalisador">
@@ -920,6 +942,7 @@
           <label><input type="checkbox" data-perm="cadastro"> Cadastro</label>
           <label><input type="checkbox" data-perm="cotacoes"> Cotações</label>
           <label><input type="checkbox" data-perm="usuarios"> Usuários</label>
+          <label><input type="checkbox" data-perm="auditoria"> Auditoria</label>
         </div>
       </div>
 
@@ -970,6 +993,59 @@
       <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       <h3>Nenhum usuário cadastrado</h3>
       <p>Preencha o formulário acima para cadastrar o primeiro usuário.</p>
+    </div>
+  </section>
+</main>
+
+<!-- ============================================================
+     ABA AUDITORIA — registra data, hora, mês, local, usuário e ação
+     ============================================================ -->
+<main class="wrap hidden" id="view-auditoria">
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Auditoria do Sistema</h2>
+      <span class="sub" id="audCount">0 registros</span>
+      <button class="btn" id="audLimparBtn" title="Limpar todos os lançamentos de auditoria (apenas ADM/Programador)"
+        style="display:none;margin-left:auto;background:#fee2e2;color:#b91c1c;border-color:#fecaca">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+        </svg>
+        Limpar Lançamentos
+      </button>
+    </div>
+    <div class="toolbar">
+      <div class="search" id="audSearchBox">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="audSearch" placeholder="Filtrar por usuário, ação, detalhes ou local…" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table style="min-width:1100px">
+        <thead>
+          <tr>
+            <th style="width:100px">Dia</th>
+            <th style="width:100px">Hora</th>
+            <th style="width:100px">Mês</th>
+            <th style="width:140px">Usuário</th>
+            <th style="width:180px">Ação</th>
+            <th>Detalhes</th>
+            <th style="width:220px">Local</th>
+          </tr>
+        </thead>
+        <tbody id="audTbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hidden" id="audEmpty">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11H5a2 2 0 0 0-2 2v7h6v-9z"/><path d="M15 7H9v13h6V7z"/><path d="M21 3h-6v17h6V3z"/></svg>
+      <h3>Nenhum registro de auditoria</h3>
+      <p>As ações realizadas no sistema aparecerão aqui.</p>
+    </div>
+    <div class="footnote">
+      Registro automático de <b>dia</b>, <b>hora</b>, <b>mês</b>, <b>local</b>, <b>usuário</b> e <b>ação</b> realizada no sistema.
+      A limpeza dos lançamentos é restrita ao <b>Administrador (ADM)</b> e ao <b>Programador</b>.
     </div>
   </section>
 </main>
@@ -3456,6 +3532,7 @@ function saveEdit(original){
     pt2:    n('edPt2'),
     rh2:    n('edRh2')
   };
+  if (window.auditLog) window.auditLog('LANCAMENTO_EDITADO', 'Ref #' + originalRef + ' (' + DATA[idx].marca + ' ' + DATA[idx].modelo + ')');
   refreshMarcaOptions();
   render();
   renderPesq();
@@ -3511,11 +3588,13 @@ document.getElementById('cfgApply').addEventListener('click', () => {
     custoKg: g(cfgCusto, DEFAULT_CFG.custoKg)
   };
   try{ localStorage.setItem(LS_KEY, JSON.stringify(CFG)); }catch(e){}
+  if (window.auditLog) window.auditLog('PARAMETROS_ALTERADOS', 'Aplicou novos parâmetros de cálculo');
   render(); renderCotacoes(); renderPesq(); closeDrawer();
 });
 document.getElementById('cfgReset').addEventListener('click', () => {
   CFG = { ...DEFAULT_CFG };
   try{ localStorage.removeItem(LS_KEY); }catch(e){}
+  if (window.auditLog) window.auditLog('PARAMETROS_RESTAURADOS', 'Restaurou parâmetros padrão');
   fillDrawer(); render(); renderCotacoes(); renderPesq();
 });
 
@@ -3568,6 +3647,8 @@ document.querySelectorAll('.tab').forEach(btn => {
     if(vnovo) vnovo.classList.toggle('hidden', t !== 'novo');
     const vusr = document.getElementById('view-usuarios');
     if(vusr) vusr.classList.toggle('hidden', t !== 'usuarios');
+    const vaud = document.getElementById('view-auditoria');
+    if(vaud) vaud.classList.toggle('hidden', t !== 'auditoria');
   });
 });
 
@@ -3699,6 +3780,7 @@ async function fetchKitcoPrices() {
 
     CFG.pd = pd; CFG.pt = pt; CFG.rh = rh;
     try { localStorage.setItem(LS_KEY, JSON.stringify(CFG)); } catch (_) {}
+    if (window.auditLog) window.auditLog('COTACAO_ATUALIZADA', 'Pd US$ ' + pd.toFixed(2) + ', Pt US$ ' + pt.toFixed(2) + ', Rh US$ ' + rh.toFixed(2));
     renderCotacoes();
     render();
     renderPesq();
@@ -3853,6 +3935,7 @@ document.getElementById('btnExport').addEventListener('click', () => {
   a.download = `catalisadores_paizao_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
   URL.revokeObjectURL(a.href);
+  if (window.auditLog) window.auditLog('EXPORTACAO_CSV', list.length + ' registros exportados');
 });
 
 /* =========================================================
@@ -3939,6 +4022,7 @@ async function syncSheet(){
     document.getElementById('tabCount').textContent = DATA.length;
     render();
     renderPesq();
+    if (window.auditLog) window.auditLog('SINCRONIZACAO_SHEET', DATA.length + ' peças carregadas da planilha');
     alert('Sincronizado: ' + DATA.length + ' peças carregadas.');
   }catch(e){
     alert('Erro ao sincronizar: ' + e.message);
@@ -3961,6 +4045,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
   if([pd,pt,rh,dolar].every(isFinite)){
     CFG.pd = pd; CFG.pt = pt; CFG.rh = rh; CFG.dolar = dolar;
     try{ localStorage.setItem(LS_KEY, JSON.stringify(CFG)); }catch(e){}
+    if (window.auditLog) window.auditLog('COTACAO_MANUAL', 'Pd ' + pd + ', Pt ' + pt + ', Rh ' + rh + ', Dólar ' + dolar);
     render(); renderCotacoes(); renderPesq();
   } else alert('Valores inválidos. Use números separados por vírgula.');
 });
@@ -3985,7 +4070,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
   'use strict';
 
   const LS_KEY_USERS = 'paizao_usuarios';
-  const ALL_TABS = ['catalisador','novo','pesquisa','cadastro','cotacoes','usuarios'];
+  const ALL_TABS = ['catalisador','novo','pesquisa','cadastro','cotacoes','usuarios','auditoria'];
 
   const DEFAULT_SERGIO = {
     pass: '080888', role: 'admin', type: 'ADM', label: 'Administrador',
@@ -4016,6 +4101,9 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }
     if(u.type === 'ADM' && Array.isArray(u.permissions) && !u.permissions.includes('novo')){
       u.permissions.push('novo');
+    }
+    if(u.type === 'ADM' && Array.isArray(u.permissions) && !u.permissions.includes('auditoria')){
+      u.permissions.push('auditoria');
     }
     if(!u.label) u.label = u.type;
     if(!('selfie' in u)) u.selfie = '';
@@ -4131,11 +4219,16 @@ document.getElementById('btnCota').addEventListener('click', () => {
   }
 
   function grantAccess(user, acc){
+    window.currentUser = user;
+    window.currentUserType = acc.type || 'ADM';
     overlay.classList.add('hidden');
     document.body.style.overflow = '';
     addLogoutButton(user, acc);
     applyPermissions(user);
     showToast(`Bem-vindo, ${user} · ${acc.label || acc.type || ''}`);
+    if (window.auditLog) {
+      try { window.auditLog('LOGIN', 'Entrou no sistema — ' + (acc.label || acc.type || '')); } catch(_){}
+    }
     tryFullscreen();
     armFullscreenFallback();
   }
@@ -4158,6 +4251,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
       ' Sair';
     btn.addEventListener('click', () => {
       if(!confirm('Deseja sair do sistema?')) return;
+      if (window.auditLog) { try { window.auditLog('LOGOUT', 'Saiu do sistema'); } catch(_){} }
       try { if(typeof closeModal === 'function') closeModal(); } catch(_){}
       try { if(typeof closeDrawer === 'function') closeDrawer(); } catch(_){}
       btn.remove();
@@ -4171,6 +4265,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
       });
+      window.currentUser = null;
+      window.currentUserType = null;
       overlay.classList.remove('hidden');
       setTimeout(() => { try { userInput.focus(); } catch(_){} }, 60);
     });
@@ -4717,6 +4813,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     clientes.splice(i, 1);
     saveClientes();
+    if (window.auditLog) window.auditLog('CLIENTE_EXCLUIDO', 'Nome: ' + (c.nome || '#id'));
     renderCadastro();
     if(editIndex === i) clearFields();
     else if(editIndex > i) editIndex--;
@@ -4775,6 +4872,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
       clientes.push(dados);
     }
     saveClientes();
+
+    if (window.auditLog) {
+      try { window.auditLog(isNovo ? 'CLIENTE_CRIADO' : 'CLIENTE_EDITADO', 'Nome: ' + nome + ' · Fone: ' + fone); } catch(_){}
+    }
 
     // ---------- CRIA USUÁRIO AUTOMATICAMENTE (apenas novos cadastros) ----------
     let usuarioCriadoMsg = '';
@@ -5043,6 +5144,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if(!confirm(`Excluir o usuário "${userKey}"?`)) return;
     delete USERS[userKey];
     if (window.saveUsers) window.saveUsers();
+    if (window.auditLog) window.auditLog('USUARIO_EXCLUIDO', 'Login: ' + userKey);
     render();
     if(editUser === userKey) clearFields();
   }
@@ -5086,6 +5188,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }
 
     if (window.saveUsers) window.saveUsers();
+    if (window.auditLog) window.auditLog(editUser ? 'USUARIO_EDITADO' : 'USUARIO_CRIADO', 'Login: ' + finalUser + ', Tipo: ' + tipo);
     render();
     alert('Usuário salvo com sucesso!\n\nLogin: ' + finalUser + '\nSenha: ' + pass);
     clearFields();
@@ -5094,7 +5197,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
   usrTipo.addEventListener('change', () => {
     const t = usrTipo.value;
     const defaults = {
-      ADM: ['catalisador','novo','pesquisa','cadastro','cotacoes','usuarios'],
+      ADM: ['catalisador','novo','pesquisa','cadastro','cotacoes','usuarios','auditoria'],
       COMPRADOR: ['catalisador','pesquisa','cotacoes'],
       AGREGADO: ['catalisador','pesquisa'],
       CLIENTE: ['catalisador','pesquisa']
@@ -5401,6 +5504,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
     const badge = document.getElementById('tabCount');
     if(badge) badge.textContent = DATA.length;
 
+    if (window.auditLog) {
+      try { window.auditLog('LANCAMENTO_CRIADO', 'Ref #' + refFinal + ' · Marca: ' + novo.marca + ' · Modelo: ' + novo.modelo + ' · Peso: ' + peso1 + ' kg'); } catch(_){}
+    }
+
     alert(
       '✅ Lançamento adicionado à aba Catalisador!\n\n' +
       'Referência: #' + refFinal + '\n' +
@@ -5415,6 +5522,189 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
   updateRefHint();
   novoRef.addEventListener('focus', updateRefHint);
+})();
+</script>
+
+<!-- ============================================================
+     ABA AUDITORIA — Registra dia, hora, mês, local, usuário e ação
+     ============================================================ -->
+<script>
+(function auditoriaSystem(){
+  'use strict';
+
+  const LS_KEY_AUD = 'paizao_auditoria';
+  const MAX_ENTRIES = 5000;
+
+  let AUDIT = [];
+  try {
+    const saved = JSON.parse(localStorage.getItem(LS_KEY_AUD) || '[]');
+    if (Array.isArray(saved)) AUDIT = saved;
+  } catch(e){ AUDIT = []; }
+
+  let userLocation = 'Localização não disponível';
+  let locationFetched = false;
+
+  async function fetchLocation(){
+    if (locationFetched) return;
+    locationFetched = true;
+    try {
+      const r = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
+      if (r.ok) {
+        const d = await r.json();
+        const parts = [d.city, d.region, d.country_name].filter(Boolean);
+        if (parts.length) userLocation = parts.join(', ');
+        return;
+      }
+    } catch(_){}
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz) userLocation = tz;
+    } catch(_){}
+  }
+  fetchLocation();
+
+  function saveAudit(){
+    try { localStorage.setItem(LS_KEY_AUD, JSON.stringify(AUDIT)); } catch(e){}
+  }
+
+  function pad(n){ return String(n).padStart(2, '0'); }
+
+  function escHtml(s){
+    return String(s ?? '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  window.auditLog = function(action, details){
+    try {
+      const now = new Date();
+      const user = window.currentUser || 'SISTEMA';
+      const entry = {
+        id: Date.now() + '_' + Math.random().toString(36).slice(2,8),
+        ts: now.toISOString(),
+        date: pad(now.getDate()) + '/' + pad(now.getMonth() + 1) + '/' + now.getFullYear(),
+        time: pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds()),
+        month: pad(now.getMonth() + 1) + '/' + now.getFullYear(),
+        user: user,
+        action: action,
+        details: details || '',
+        location: userLocation
+      };
+      AUDIT.unshift(entry);
+      if (AUDIT.length > MAX_ENTRIES) AUDIT.length = MAX_ENTRIES;
+      saveAudit();
+      try { renderAudit(); } catch(_){}
+    } catch(_){}
+  };
+
+  const audTbody     = document.getElementById('audTbody');
+  const audEmpty     = document.getElementById('audEmpty');
+  const audCount     = document.getElementById('audCount');
+  const audLimparBtn = document.getElementById('audLimparBtn');
+  const audSearch    = document.getElementById('audSearch');
+
+  let searchQ = '';
+
+  function isAdmin(){
+    if (!window.currentUser) return false;
+    if (window.currentUser === 'PROGRAMADOR') return true;
+    return window.currentUserType === 'ADM';
+  }
+
+  function getFilteredAud(){
+    if (!searchQ) return AUDIT;
+    const q = searchQ.toLowerCase();
+    return AUDIT.filter(e =>
+      (e.user || '').toLowerCase().includes(q) ||
+      (e.action || '').toLowerCase().includes(q) ||
+      (e.details || '').toLowerCase().includes(q) ||
+      (e.location || '').toLowerCase().includes(q) ||
+      (e.date || '').toLowerCase().includes(q) ||
+      (e.time || '').toLowerCase().includes(q) ||
+      (e.month || '').toLowerCase().includes(q)
+    );
+  }
+
+  function actionClass(action){
+    const a = String(action || '').toUpperCase();
+    if (a.includes('LOGIN')) return 'aud-login';
+    if (a.includes('LOGOUT')) return 'aud-logout';
+    if (a.includes('EXCLU') || a.includes('LIMPA')) return 'aud-exclui';
+    if (a.includes('CRIA') || a.includes('NOVO') || a.includes('LANCAMENTO_CRIADO')) return 'aud-cria';
+    if (a.includes('EDIT')) return 'aud-edit';
+    if (a.includes('LIMPA')) return 'aud-limpa';
+    return '';
+  }
+
+  function renderAudit(){
+    if (!audTbody) return;
+
+    if (audLimparBtn) {
+      audLimparBtn.style.display = isAdmin() ? 'inline-flex' : 'none';
+    }
+
+    const list = getFilteredAud();
+    if (audCount) {
+      audCount.textContent = list.length + ' registro' + (list.length === 1 ? '' : 's');
+    }
+
+    if (!list.length) {
+      audTbody.innerHTML = '';
+      if (audEmpty) audEmpty.classList.remove('hidden');
+      return;
+    }
+    if (audEmpty) audEmpty.classList.add('hidden');
+
+    audTbody.innerHTML = list.map(e => `
+      <tr>
+        <td class="aud-mono">${escHtml(e.date)}</td>
+        <td class="aud-mono">${escHtml(e.time)}</td>
+        <td class="aud-mono">${escHtml(e.month)}</td>
+        <td class="aud-user">${escHtml(e.user)}</td>
+        <td><span class="aud-action ${actionClass(e.action)}">${escHtml(e.action)}</span></td>
+        <td class="aud-details">${escHtml(e.details)}</td>
+        <td class="aud-loc">${escHtml(e.location)}</td>
+      </tr>
+    `).join('');
+  }
+
+  if (audLimparBtn) {
+    audLimparBtn.addEventListener('click', () => {
+      if (!isAdmin()) {
+        alert('Apenas o Programador ou Administrador (ADM) pode limpar os lançamentos de auditoria.');
+        return;
+      }
+      if (!AUDIT.length) {
+        alert('Não há lançamentos para limpar.');
+        return;
+      }
+      if (!confirm('Tem certeza que deseja limpar TODOS os lançamentos de auditoria?\n\nEsta ação não pode ser desfeita.')) return;
+
+      const count = AUDIT.length;
+      AUDIT.length = 0;
+      saveAudit();
+      renderAudit();
+      window.auditLog('AUDITORIA_LIMPA', 'Limpou ' + count + ' registro' + (count === 1 ? '' : 's') + ' de auditoria');
+    });
+  }
+
+  if (audSearch) {
+    audSearch.addEventListener('input', e => {
+      searchQ = e.target.value;
+      renderAudit();
+    });
+  }
+
+  // Re-renderiza sempre que a aba for clicada (para atualizar visibilidade do botão limpar)
+  document.addEventListener('click', e => {
+    const tab = e.target.closest('.tab[data-tab="auditoria"]');
+    if (tab) {
+      setTimeout(renderAudit, 60);
+    }
+  });
+
+  renderAudit();
+  window.renderAudit = renderAudit;
 })();
 </script>
 
