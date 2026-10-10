@@ -454,6 +454,18 @@
   #view-auditoria td.aud-user{font-weight:700;color:var(--navy);white-space:nowrap}
   #view-auditoria td.aud-details{font-size:12.5px;color:var(--txt-2);max-width:420px;word-break:break-word}
   #view-auditoria td.aud-loc{font-size:12px;color:var(--txt-2);white-space:nowrap}
+
+  /* =========================================================
+     ABA PÓ — Novos estilos para a grade de cálculo
+     ========================================================= */
+  .po-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 10px; }
+  .po-grid-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+  .po-readonly { background: #f0fdf4 !important; border-color: #bbf7d0 !important; color: #15803d !important; font-weight: 700 !important; cursor: default; }
+  .po-readonly:focus { box-shadow: none !important; }
+  @media (max-width: 768px) {
+    .po-grid { grid-template-columns: repeat(2, 1fr); }
+    .po-grid-bottom { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -627,6 +639,7 @@
     Catalisador <span class="badge" id="tabCount">0</span>
   </button>
   <button class="tab" data-tab="novo">Novo</button>
+  <button class="tab" data-tab="po">Pó</button>
   <button class="tab active" data-tab="pesquisa">Pesquisa</button>
   <button class="tab" data-tab="cadastro">Cadastro</button>
   <button class="tab" data-tab="cotacoes">Cotações &amp; Parâmetros</button>
@@ -759,6 +772,38 @@
           Salvar na aba Catalisador
         </button>
         <button type="button" class="btn" id="novoLimparBtn">Limpar campos</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ============================================================
+     ABA PÓ — Cálculo de Pó
+     ============================================================ -->
+<main class="wrap hidden" id="view-po">
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Cálculo de Pó</h2>
+      <span class="sub">Insira os dados para calcular o valor do pó</span>
+    </div>
+    <div class="form-body">
+      <div class="po-grid">
+        <div class="field"><label for="poPeso1">Peso 1 (kg)</label><input type="number" step="0.001" min="0" id="poPeso1" value="0"></div>
+        <div class="field"><label for="poPd1">Teor Pd 1 (g/kg)</label><input type="number" step="0.001" min="0" id="poPd1" value="0"></div>
+        <div class="field"><label for="poPt1">Teor Pt 1 (g/kg)</label><input type="number" step="0.001" min="0" id="poPt1" value="0"></div>
+        <div class="field"><label for="poRh1">Teor Rh 1 (g/kg)</label><input type="number" step="0.001" min="0" id="poRh1" value="0"></div>
+        <div class="field"><label for="poRs1">R$ 1</label><input type="text" id="poRs1" class="po-readonly" readonly value="—"></div>
+      </div>
+      <div class="po-grid">
+        <div class="field"><label for="poPeso2">Peso 2 (kg)</label><input type="number" step="0.001" min="0" id="poPeso2" value="0"></div>
+        <div class="field"><label for="poPd2">Teor Pd 2 (g/kg)</label><input type="number" step="0.001" min="0" id="poPd2" value="0"></div>
+        <div class="field"><label for="poPt2">Teor Pt 2 (g/kg)</label><input type="number" step="0.001" min="0" id="poPt2" value="0"></div>
+        <div class="field"><label for="poRh2">Teor Rh 2 (g/kg)</label><input type="number" step="0.001" min="0" id="poRh2" value="0"></div>
+        <div class="field"><label for="poRs2">R$ 2</label><input type="text" id="poRs2" class="po-readonly" readonly value="—"></div>
+      </div>
+      <div class="po-grid-bottom">
+        <div class="field"><label for="poPesoT">Peso Total (kg)</label><input type="text" id="poPesoT" class="po-readonly" readonly value="0,000 kg"></div>
+        <div class="field"><label for="poRsT">R$ Total</label><input type="text" id="poRsT" class="po-readonly" readonly value="—" style="font-size:18px;"></div>
       </div>
     </div>
   </section>
@@ -938,6 +983,7 @@
         <div class="usr-perm-box">
           <label><input type="checkbox" data-perm="catalisador" checked> Catalisador</label>
           <label><input type="checkbox" data-perm="novo"> Novo</label>
+          <label><input type="checkbox" data-perm="po"> Pó</label>
           <label><input type="checkbox" data-perm="pesquisa" checked> Pesquisa</label>
           <label><input type="checkbox" data-perm="cadastro"> Cadastro</label>
           <label><input type="checkbox" data-perm="cotacoes"> Cotações</label>
@@ -3590,12 +3636,14 @@ document.getElementById('cfgApply').addEventListener('click', () => {
   try{ localStorage.setItem(LS_KEY, JSON.stringify(CFG)); }catch(e){}
   if (window.auditLog) window.auditLog('PARAMETROS_ALTERADOS', 'Aplicou novos parâmetros de cálculo');
   render(); renderCotacoes(); renderPesq(); closeDrawer();
+  if (window.updatePoTab) window.updatePoTab(); // Atualiza a aba Pó
 });
 document.getElementById('cfgReset').addEventListener('click', () => {
   CFG = { ...DEFAULT_CFG };
   try{ localStorage.removeItem(LS_KEY); }catch(e){}
   if (window.auditLog) window.auditLog('PARAMETROS_RESTAURADOS', 'Restaurou parâmetros padrão');
   fillDrawer(); render(); renderCotacoes(); renderPesq();
+  if (window.updatePoTab) window.updatePoTab(); // Atualiza a aba Pó
 });
 
 /* =========================================================
@@ -3645,6 +3693,8 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.getElementById('view-cadastro').classList.toggle('hidden', t !== 'cadastro');
     const vnovo = document.getElementById('view-novo');
     if(vnovo) vnovo.classList.toggle('hidden', t !== 'novo');
+    const vpo = document.getElementById('view-po');
+    if(vpo) vpo.classList.toggle('hidden', t !== 'po');
     const vusr = document.getElementById('view-usuarios');
     if(vusr) vusr.classList.toggle('hidden', t !== 'usuarios');
     const vaud = document.getElementById('view-auditoria');
@@ -3784,6 +3834,7 @@ async function fetchKitcoPrices() {
     renderCotacoes();
     render();
     renderPesq();
+    if (window.updatePoTab) window.updatePoTab(); // Atualiza a aba Pó
     showToast(`Cotações atualizadas: Pd US$ ${pd.toFixed(2)}, Pt US$ ${pt.toFixed(2)}, Rh US$ ${rh.toFixed(2)}`);
   } catch (err) {
     showToast('Erro ao processar cotações. Atualize manualmente em "Parâmetros".', true);
@@ -4047,6 +4098,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     try{ localStorage.setItem(LS_KEY, JSON.stringify(CFG)); }catch(e){}
     if (window.auditLog) window.auditLog('COTACAO_MANUAL', 'Pd ' + pd + ', Pt ' + pt + ', Rh ' + rh + ', Dólar ' + dolar);
     render(); renderCotacoes(); renderPesq();
+    if (window.updatePoTab) window.updatePoTab(); // Atualiza a aba Pó
   } else alert('Valores inválidos. Use números separados por vírgula.');
 });
 
@@ -4070,7 +4122,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
   'use strict';
 
   const LS_KEY_USERS = 'paizao_usuarios';
-  const ALL_TABS = ['catalisador','novo','pesquisa','cadastro','cotacoes','usuarios','auditoria'];
+  const ALL_TABS = ['catalisador','novo','po','pesquisa','cadastro','cotacoes','usuarios','auditoria'];
 
   const DEFAULT_SERGIO = {
     pass: '080888', role: 'admin', type: 'ADM', label: 'Administrador',
@@ -4104,6 +4156,9 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }
     if(u.type === 'ADM' && Array.isArray(u.permissions) && !u.permissions.includes('auditoria')){
       u.permissions.push('auditoria');
+    }
+    if(u.type === 'ADM' && Array.isArray(u.permissions) && !u.permissions.includes('po')){
+      u.permissions.push('po');
     }
     if(!u.label) u.label = u.type;
     if(!('selfie' in u)) u.selfie = '';
@@ -5197,10 +5252,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
   usrTipo.addEventListener('change', () => {
     const t = usrTipo.value;
     const defaults = {
-      ADM: ['catalisador','novo','pesquisa','cadastro','cotacoes','usuarios','auditoria'],
-      COMPRADOR: ['catalisador','pesquisa','cotacoes'],
-      AGREGADO: ['catalisador','pesquisa'],
-      CLIENTE: ['catalisador','pesquisa']
+      ADM: ['catalisador','novo','po','pesquisa','cadastro','cotacoes','usuarios','auditoria'],
+      COMPRADOR: ['catalisador','po','pesquisa','cotacoes'],
+      AGREGADO: ['catalisador','po','pesquisa'],
+      CLIENTE: ['catalisador','po','pesquisa']
     };
     setAllowedToUI(defaults[t] || []);
   });
@@ -5522,6 +5577,69 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
   updateRefHint();
   novoRef.addEventListener('focus', updateRefHint);
+})();
+</script>
+
+<!-- ============================================================
+     ABA PÓ — Cálculo de Pó
+     ============================================================ -->
+<script>
+(function poSystem(){
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+  const inputs = ['poPeso1', 'poPd1', 'poPt1', 'poRh1', 'poPeso2', 'poPd2', 'poPt2', 'poRh2'];
+
+  function calcPoValue(peso, pd, pt, rh) {
+    if (peso <= 0) return 0;
+    
+    // Usa exatamente a mesma lógica da aba Catalisador
+    const pPd = CFG.pd * OZT_KG * CFG.dolar;
+    const pPt = CFG.pt * OZT_KG * CFG.dolar;
+    const pRh = CFG.rh * OZT_KG * CFG.dolar;
+
+    const vPd = (pd / 1000) * pPd * (CFG.payPd / 100);
+    const vPt = (pt / 1000) * pPt * (CFG.payPt / 100);
+    const vRh = (rh / 1000) * pRh * (CFG.payRh / 100);
+
+    const brutoKg = vPd + vPt + vRh;
+    const rskg = Math.max(0, brutoKg - CFG.custoKg);
+    
+    return rskg * peso;
+  }
+
+  function updatePo() {
+    const p1 = parseFloat($('poPeso1').value) || 0;
+    const pd1 = parseFloat($('poPd1').value) || 0;
+    const pt1 = parseFloat($('poPt1').value) || 0;
+    const rh1 = parseFloat($('poRh1').value) || 0;
+
+    const p2 = parseFloat($('poPeso2').value) || 0;
+    const pd2 = parseFloat($('poPd2').value) || 0;
+    const pt2 = parseFloat($('poPt2').value) || 0;
+    const rh2 = parseFloat($('poRh2').value) || 0;
+
+    const rs1 = calcPoValue(p1, pd1, pt1, rh1);
+    const rs2 = calcPoValue(p2, pd2, pt2, rh2);
+    const pesoT = p1 + p2;
+    const rsT = rs1 + rs2;
+
+    $('poRs1').value = rs1 > 0 ? 'R$ ' + fmtNum(rs1, 2) : '—';
+    $('poRs2').value = rs2 > 0 ? 'R$ ' + fmtNum(rs2, 2) : '—';
+    $('poPesoT').value = pesoT > 0 ? fmtNum(pesoT, 3) + ' kg' : '0,000 kg';
+    $('poRsT').value = rsT > 0 ? 'R$ ' + fmtNum(rsT, 2) : '—';
+  }
+
+  inputs.forEach(id => {
+    const el = $(id);
+    if (el) el.addEventListener('input', updatePo);
+  });
+
+  // Inicializa os valores
+  updatePo();
+  
+  // Expõe a função para ser chamada quando os parâmetros de cálculo mudarem
+  window.updatePoTab = updatePo;
 })();
 </script>
 
