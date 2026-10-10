@@ -363,8 +363,6 @@
   #view-cadastro td.cad-selfie .thumb{width:52px;height:52px}
   #view-cadastro .cad-actions{white-space:nowrap;text-align:center}
   #view-cadastro .cad-actions .row-edit{margin:0 2px}
-  #view-cadastro .cad-user-cell{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12px}
-  #view-cadastro .cad-user-cell .code-chip{margin-bottom:2px}
 
   #view-usuarios .form-body{padding:18px}
   #view-usuarios .form-body .field{margin-bottom:14px}
@@ -832,7 +830,6 @@
             <th>Agência</th>
             <th>Conta</th>
             <th>PIX</th>
-            <th>Usuário / Senha</th>
             <th style="text-align:center;width:120px">Ações</th>
           </tr>
         </thead>
@@ -3607,12 +3604,6 @@ function showToast(message, isError) {
   setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(-10px)'; setTimeout(() => toast.remove(), 400); }, 4200);
 }
 
-/**
- * Busca cotações (Pd, Pt, Rh) em US$/ozt no site da Kitco.
- * A página é renderizada no cliente, portanto o HTML pode conter os valores
- * em elementos com classes específicas. Este parser procura por linhas que
- * contenham o nome do metal e extrai o primeiro número no formato decimal.
- */
 async function fetchKitcoPrices() {
   const btn = document.getElementById('btnCotacao');
   if (!btn) return;
@@ -3648,10 +3639,6 @@ async function fetchKitcoPrices() {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
-    // Estratégia 1: procurar por elementos <tr>, <li>, <div>, <span>, <td>
-    // que contenham o nome do metal e extrair o primeiro número decimal.
-    // A classe "BidAskGrid_listify__1liIU" é usada para as linhas da tabela
-    // de cotações na página da Kitco (conforme inspeção do site).
     const candidateSelectors = [
       'tr', 'li', 'div', 'span', 'td',
       '.BidAskGrid_listify__1liIU',
@@ -3683,8 +3670,6 @@ async function fetchKitcoPrices() {
       if (pd !== null && pt !== null && rh !== null) break;
     }
 
-    // Estratégia 2 (fallback): procurar por qualquer elemento que contenha
-    // os números próximos aos nomes dos metais, mesmo que a classe tenha mudado.
     if (pd === null || pt === null || rh === null) {
       const allElements = doc.querySelectorAll('*');
       for (const el of allElements) {
@@ -3752,7 +3737,6 @@ function pesqFiltered(){
 
 function pesqCardHTML(it){
   const c = it._c;
-  // Mostrar TODOS os códigos da peça (não apenas o primeiro)
   const codList = (it.cod && it.cod.length) ? it.cod : ['—'];
   const cod = codList.join(' · ');
   const codTitle = codList.join(' | ');
@@ -4280,7 +4264,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     });
   }
 
-  // Função para embaralhar o array (Fisher-Yates)
   function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -4308,8 +4291,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
   let lastMovementTime = 0;
 
   function resetFaceState(){
-    // Embaralha a sequência de movimentos a cada tentativa
-    MOVEMENT_SEQUENCE = shuffleArray(['right', 'left', 'up', 'down']);
+    const moves = ['right', 'left', 'up', 'down'];
+    MOVEMENT_SEQUENCE = [moves[Math.floor(Math.random() * moves.length)]];
     baseline = null;
     baselineSamples = [];
     currentIdx = 0;
@@ -4559,7 +4542,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
 </script>
 
 <!-- ============================================================
-     ABA CADASTRO — Cadastro de Clientes + Selfie + Usuário automático
+     ABA CADASTRO — Cadastro de Clientes + Selfie
      ============================================================ -->
 <script>
 (function cadastroSystem(){
@@ -4598,17 +4581,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
   function saveClientes(){
     try { localStorage.setItem(LS_CAD, JSON.stringify(clientes)); } catch(e){}
-  }
-
-  function onlyDigits(s){ return String(s||'').replace(/\D/g,''); }
-
-  function makeUser(nome, fone){
-    const first = String(nome||'').trim().split(/\s+/)[0]
-      .toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-      .replace(/[^A-Z]/g,'');
-    const digits = onlyDigits(fone);
-    const pass = digits.length > 2 ? digits.slice(2) : digits;
-    return { user: first, pass };
   }
 
   function escHtml(s){
@@ -4650,7 +4622,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     cadEmpty.classList.add('hidden');
     let html = '';
     clientes.forEach((c, i) => {
-      const u = makeUser(c.nome, c.fone);
       const selfieHTML = c.selfie
         ? `<img src="${escHtml(c.selfie)}" alt="">`
         : `<div class="thumb"></div>`;
@@ -4667,10 +4638,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
         <td>${escHtml(c.agencia||'')}</td>
         <td>${escHtml(c.conta||'')}</td>
         <td>${escHtml(c.pix||'')}</td>
-        <td class="cad-user-cell">
-          <span class="code-chip primary">${escHtml(u.user||'—')}</span><br>
-          <span class="code-chip">${escHtml(u.pass||'—')}</span>
-        </td>
         <td class="cad-actions">
           <button class="row-edit" data-cad-edit="${i}" title="Editar" aria-label="Editar">✎</button>
           <button class="row-edit" data-cad-del="${i}" title="Excluir" aria-label="Excluir"
@@ -4730,17 +4697,34 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if(!c) return;
     if(!confirm(`Excluir o cliente "${c.nome}"?`)) return;
 
-    const u = makeUser(c.nome, c.fone);
-    if(u.user && window.USERS && window.USERS[u.user] && window.USERS[u.user].role === 'cliente'){
-      delete window.USERS[u.user];
-      if (window.saveUsers) window.saveUsers();
-    }
-
     clientes.splice(i, 1);
     saveClientes();
     renderCadastro();
     if(editIndex === i) clearFields();
     else if(editIndex > i) editIndex--;
+  }
+
+  // Gera uma chave de usuário única (apenas A-Z) a partir do primeiro nome
+  function gerarUsuarioUnico(nome, USERS){
+    const primeiroNome = (String(nome).trim().split(/\s+/)[0] || '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase().replace(/[^A-Z]/g, '');
+    if(!primeiroNome) return '';
+    let userKey = primeiroNome;
+    if(!USERS[userKey]) return userKey;
+
+    // Se já existe, vai acrescentando letras do nome completo até ficar único
+    const todasLetras = String(nome)
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase().replace(/[^A-Z]/g, '');
+    let i = primeiroNome.length;
+    while(USERS[userKey] && i < todasLetras.length){
+      userKey = todasLetras.slice(0, i + 1);
+      i++;
+    }
+    // Fallback — acrescenta X até ficar único
+    while(USERS[userKey]) userKey += 'X';
+    return userKey;
   }
 
   function salvar(){
@@ -4765,37 +4749,48 @@ document.getElementById('btnCota').addEventListener('click', () => {
       selfie: selfieData || ''
     };
 
+    const isNovo = editIndex < 0;
+
     if(editIndex >= 0){
-      const antigo = clientes[editIndex];
-      const uAnt = makeUser(antigo.nome, antigo.fone);
-      if(uAnt.user && window.USERS && window.USERS[uAnt.user] && window.USERS[uAnt.user].role === 'cliente'){
-        delete window.USERS[uAnt.user];
-      }
       clientes[editIndex] = dados;
     } else {
       clientes.push(dados);
     }
     saveClientes();
 
-    const u = makeUser(nome, fone);
-    if(u.user && u.pass && window.USERS){
-      window.USERS[u.user] = {
-        pass: u.pass,
-        role: 'cliente',
-        type: 'CLIENTE',
-        label: 'Cliente',
-        permissions: ['catalisador','pesquisa'],
-        selfie: dados.selfie || '',
-        nome: nome
-      };
-      if (window.saveUsers) window.saveUsers();
+    // ---------- CRIA USUÁRIO AUTOMATICAMENTE (apenas novos cadastros) ----------
+    let usuarioCriadoMsg = '';
+    if(isNovo){
+      try{
+        const USERS = window.USERS;
+        if(USERS && typeof window.saveUsers === 'function'){
+          const senha = fone.replace(/\D/g, ''); // só dígitos do celular
+          const userKey = gerarUsuarioUnico(nome, USERS);
+          if(userKey && senha){
+            USERS[userKey] = {
+              pass: senha,
+              role: 'comprador',
+              type: 'COMPRADOR',
+              label: 'Comprador',
+              permissions: ['pesquisa'],
+              selfie: selfieData || '',
+              nome: nome
+            };
+            window.saveUsers();
+            if(typeof window.renderUsuarios === 'function'){
+              try { window.renderUsuarios(); } catch(_){}
+            }
+            usuarioCriadoMsg = '\n\n✅ Usuário criado automaticamente:' +
+              '\nUsuário: ' + userKey +
+              '\nSenha: '   + senha +
+              '\nAcesso: Pesquisa';
+          }
+        }
+      }catch(e){ /* silencioso — não quebra o fluxo original */ }
     }
+    // -------------------------------------------------------------------------
 
-    alert(
-      'Cliente salvo!\n\n' +
-      'Usuário: ' + u.user + '\n' +
-      'Senha:   ' + u.pass
-    );
+    alert('Cliente salvo com sucesso!\n\nNome: ' + nome + usuarioCriadoMsg);
 
     renderCadastro();
     clearFields();
@@ -5168,6 +5163,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
   clearFields();
   render();
+  // Expõe o render para que o cadastro de clientes possa atualizar a tabela em tempo real
+  window.renderUsuarios = render;
 })();
 </script>
 
