@@ -579,19 +579,19 @@
     <div>PAIZÃO METAIS<small>Consulta Técnica de Catalisadores</small></div>
   </div>
   <div class="spacer"></div>
-  <button class="top-btn" id="btnSync" title="Sincronizar com a planilha Google">
+  <button class="top-btn" id="btnSync" title="Sincronizar com a planilha Google" style="display:none">
     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
     Sincronizar
   </button>
-  <button class="top-btn" id="btnCota" title="Atualizar cotações Pd/Pt/Rh/Dólar">
+  <button class="top-btn" id="btnCota" title="Atualizar cotações Pd/Pt/Rh/Dólar" style="display:none">
     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
     Cotações
   </button>
-  <button class="top-btn" id="btnExport" title="Exportar resultados em CSV">
+  <button class="top-btn" id="btnExport" title="Exportar resultados em CSV" style="display:none">
     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     Exportar
   </button>
-  <button class="top-btn" id="btnConfig" title="Parâmetros de cálculo">
+  <button class="top-btn" id="btnConfig" title="Parâmetros de cálculo" style="display:none">
     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     Parâmetros
   </button>
@@ -4099,6 +4099,17 @@ document.getElementById('btnCota').addEventListener('click', () => {
     document.addEventListener('keydown', once, { once: true });
   }
 
+  // ---- Controle de visibilidade dos botões de topo ----
+  // Somente o usuário PROGRAMADOR enxerga os botões operacionais.
+  function updateTopButtonsVisibility(userName){
+    const isProgramador = userName === 'PROGRAMADOR';
+    ['btnSync','btnCota','btnExport','btnConfig'].forEach(id => {
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.style.display = isProgramador ? '' : 'none';
+    });
+  }
+
   function applyPermissions(userName){
     const u = USERS[userName];
     if (!u) return;
@@ -4108,6 +4119,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
       if (allowed.includes(tab.dataset.tab)) tab.classList.remove('hidden');
       else tab.classList.add('hidden');
     });
+    // NOVO: controla os botões de topo
+    updateTopButtonsVisibility(userName);
     const target = allowed.includes('pesquisa')
       ? 'pesquisa'
       : ALL_TABS.find(t => allowed.includes(t));
@@ -4153,6 +4166,11 @@ document.getElementById('btnCota').addEventListener('click', () => {
       errorEl.textContent = '';
       document.body.style.overflow = 'hidden';
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('hidden'));
+      // Oculta os botões de topo ao sair
+      ['btnSync','btnCota','btnExport','btnConfig'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.style.display = 'none';
+      });
       overlay.classList.remove('hidden');
       setTimeout(() => { try { userInput.focus(); } catch(_){} }, 60);
     });
