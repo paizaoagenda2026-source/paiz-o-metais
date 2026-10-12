@@ -3426,7 +3426,22 @@ function temDuasPedras(it){
    CÁLCULOS
    ========================================================= */
 function precoKgBRL(cotacaoUSDozt){ return cotacaoUSDozt * OZT_KG * CFG.dolar; }
+
+/* Cálculo compartilhado — MESMA fórmula usada na aba Pó.
+   Retorna o R$ por kg (após aplicar rendimento e subtrair custo). */
+function calcRskgFromTeores(pd, pt, rh){
+  const pPd = CFG.pd * OZT_KG * CFG.dolar;
+  const pPt = CFG.pt * OZT_KG * CFG.dolar;
+  const pRh = CFG.rh * OZT_KG * CFG.dolar;
+  const vPd = (pd / 1000) * pPd * (CFG.payPd / 100);
+  const vPt = (pt / 1000) * pPt * (CFG.payPt / 100);
+  const vRh = (rh / 1000) * pRh * (CFG.payRh / 100);
+  const brutoKg = vPd + vPt + vRh;
+  return Math.max(0, brutoKg - CFG.custoKg);
+}
+
 function calcItem(it){
+  const orig = it._orig || it;
   const pPd = precoKgBRL(CFG.pd);
   const pPt = precoKgBRL(CFG.pt);
   const pRh = precoKgBRL(CFG.rh);
@@ -3435,7 +3450,14 @@ function calcItem(it){
   const vRh = (it.rh / 1000) * pRh * (CFG.payRh / 100);
   const brutoKg = vPd + vPt + vRh;
   const rskg = Math.max(0, brutoKg - CFG.custoKg);
-  const rspeca = rskg * it.peso;
+
+  /* R$ / PEÇA — calculado por pedra (idêntico à aba Pó):
+     valor = (R$/kg da Pedra 1 × peso 1) + (R$/kg da Pedra 2 × peso 2)
+     Assim, cada pedra usa seu próprio teor e seu próprio peso. */
+  const rskg1 = calcRskgFromTeores(orig.pd || 0, orig.pt || 0, orig.rh || 0);
+  const rskg2 = calcRskgFromTeores(orig.pd2 || 0, orig.pt2 || 0, orig.rh2 || 0);
+  const rspeca = rskg1 * (orig.peso || 0) + rskg2 * (orig.peso2 || 0);
+
   return { pPd, pPt, pRh, vPd, vPt, vRh, brutoKg, rskg, rspeca };
 }
 
@@ -5783,21 +5805,11 @@ document.getElementById('btnCota').addEventListener('click', () => {
   const $ = id => document.getElementById(id);
   const inputs = ['poPeso1', 'poPd1', 'poPt1', 'poRh1', 'poPeso2', 'poPd2', 'poPt2', 'poRh2'];
 
+  // Usa a MESMA função compartilhada da aba Catalisador:
+  // cada pedra é calculada individualmente e somada.
   function calcPoValue(peso, pd, pt, rh) {
     if (peso <= 0) return 0;
-    
-    // Usa exatamente a mesma lógica da aba Catalisador
-    const pPd = CFG.pd * OZT_KG * CFG.dolar;
-    const pPt = CFG.pt * OZT_KG * CFG.dolar;
-    const pRh = CFG.rh * OZT_KG * CFG.dolar;
-
-    const vPd = (pd / 1000) * pPd * (CFG.payPd / 100);
-    const vPt = (pt / 1000) * pPt * (CFG.payPt / 100);
-    const vRh = (rh / 1000) * pRh * (CFG.payRh / 100);
-
-    const brutoKg = vPd + vPt + vRh;
-    const rskg = Math.max(0, brutoKg - CFG.custoKg);
-    
+    const rskg = calcRskgFromTeores(pd, pt, rh);
     return rskg * peso;
   }
 
