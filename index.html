@@ -8,6 +8,151 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Paizão Metais">
+
+<!-- ===== FIREBASE SDK ===== -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+(function firebaseBoot(){
+  'use strict';
+  var firebaseConfig = {
+    apiKey: "AIzaSyChayJ8VyeM2giHax_CgEDmHR-cq5hMP7o",
+    authDomain: "catalisador-7a908.firebaseapp.com",
+    projectId: "catalisador-7a908",
+    storageBucket: "catalisador-7a908.firebasestorage.app",
+    messagingSenderId: "792620694558",
+    appId: "1:792620694558:web:35e624483316721702820f",
+    measurementId: "G-TS41TBX0RL"
+  };
+  var COLLECTION = 'paizao_storage';
+  var CHUNK_SIZE = 400000;
+  var BOOT_FLAG  = 'fb_boot_done_v1';
+  var SYNC_KEYS = [
+    'paizao_usuarios','paizao_clientes','paizao_carrinho','paizao_pedidos',
+    'paizao_pedido_counter','paizao_auditoria','paizao_catalisador_cfg',
+    'paizao_catalisadores'
+  ];
+  if (typeof firebase === 'undefined' || !firebase.initializeApp){
+    console.warn('[FB] SDK indisponível. App em modo local.');
+    return;
+  }
+  var db;
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+  } catch(e){ console.warn('[FB] init:', e); return; }
+
+  var origSetItem    = Storage.prototype.setItem;
+  var origRemoveItem = Storage.prototype.removeItem;
+  function chunkKey(key, i){ return key + '__chunk__' + i; }
+
+  async function saveKey(key, value){
+    if (typeof value !== 'string') value = String(value == null ? '' : value);
+    try {
+      var ref = db.collection(COLLECTION).doc(key);
+      var metaSnap = await ref.get();
+      var oldChunks = metaSnap.exists ? (metaSnap.data().chunks || 1) : 0;
+      if (value.length <= CHUNK_SIZE){
+        await ref.set({
+          value: value, chunks: 1,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        if (oldChunks > 1){
+          var b = db.batch();
+          for (var i = 0; i < oldChunks; i++) b.delete(db.collection(COLLECTION).doc(chunkKey(key, i)));
+          await b.commit().catch(function(){});
+        }
+      } else {
+        var total = Math.ceil(value.length / CHUNK_SIZE);
+        var delB = db.batch();
+        for (var j = 0; j < oldChunks; j++) delB.delete(db.collection(COLLECTION).doc(chunkKey(key, j)));
+        await delB.commit().catch(function(){});
+        for (var k = 0; k < total; k++){
+          var chunk = value.substring(k * CHUNK_SIZE, (k + 1) * CHUNK_SIZE);
+          await db.collection(COLLECTION).doc(chunkKey(key, k)).set({ value: chunk });
+        }
+        await ref.set({
+          value: null, chunks: total,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    } catch(e){ console.warn('[FB] saveKey(' + key + '):', e.message); }
+  }
+  window.__fbSaveKey = saveKey;
+
+  var pushTimers = {};
+  function schedulePush(key, value){
+    if (pushTimers[key]) clearTimeout(pushTimers[key]);
+    pushTimers[key] = setTimeout(function(){
+      pushTimers[key] = null;
+      saveKey(key, value);
+    }, 500);
+  }
+
+  Storage.prototype.setItem = function(key, value){
+    try { origSetItem.call(this, key, value); } catch(e){}
+    if (this === window.localStorage && SYNC_KEYS.indexOf(key) !== -1){
+      schedulePush(key, String(value));
+    }
+  };
+
+  window.__fbPushNow = function(key, value){
+    if (pushTimers[key]) { clearTimeout(pushTimers[key]); pushTimers[key] = null; }
+    return saveKey(key, value);
+  };
+
+  var alreadyBooted = false;
+  try { alreadyBooted = sessionStorage.getItem(BOOT_FLAG) === '1'; } catch(_){}
+  if (alreadyBooted) return;
+
+  (async function bootOnce(){
+    var needsReload = false;
+    try {
+      var snap = await db.collection(COLLECTION).get();
+      var remote = new Map();
+      snap.forEach(function(doc){
+        var id = doc.id;
+        if (id.indexOf('__chunk__') !== -1) return;
+        remote.set(id, doc.data() || {});
+      });
+      for (var a = 0; a < SYNC_KEYS.length; a++){
+        var key = SYNC_KEYS[a];
+        if (!remote.has(key)) continue;
+        var data = remote.get(key) || {};
+        var chunks = data.chunks || 1;
+        var value = '';
+        if (chunks === 1){
+          value = (data.value !== null && data.value !== undefined) ? String(data.value) : '';
+        } else {
+          for (var c = 0; c < chunks; c++){
+            var cs = await db.collection(COLLECTION).doc(chunkKey(key, c)).get();
+            if (cs.exists) value += (cs.data().value || '');
+          }
+        }
+        var current = null;
+        try { current = window.localStorage.getItem(key); } catch(_){}
+        if (current !== value){
+          try { origSetItem.call(window.localStorage, key, value); needsReload = true; } catch(_){}
+        }
+      }
+      for (var s = 0; s < SYNC_KEYS.length; s++){
+        var sk = SYNC_KEYS[s];
+        if (remote.has(sk)) continue;
+        var lv = null;
+        try { lv = window.localStorage.getItem(sk); } catch(_){}
+        if (lv !== null) await saveKey(sk, lv).catch(function(){});
+      }
+      try { sessionStorage.setItem(BOOT_FLAG, '1'); } catch(_){}
+      if (needsReload) location.reload();
+    } catch(e){
+      console.warn('[FB] boot:', e);
+      try { sessionStorage.setItem(BOOT_FLAG, '1'); } catch(_){}
+    }
+  })();
+})();
+</script>
+<!-- ===== /FIREBASE ===== -->
+
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="apple-touch-icon" href="logo.png">
 <link rel="manifest" id="pwaManifest">
@@ -257,9 +402,6 @@
     .pesq-logo-text{font-size:22px}
   }
 
-  /* =========================================================
-     TELA DE LOGIN — ajustada para ficar idêntica à referência
-     ========================================================= */
   .login-overlay{position:fixed;inset:0;z-index:9999;
     background:linear-gradient(180deg,#0d1e30 0%,#0f2338 55%,#14283f 100%);
     display:flex;align-items:center;justify-content:center;padding:20px;
@@ -437,9 +579,6 @@
     .login-btn{height:50px}
   }
 
-  /* =========================================================
-     AUDITORIA — estilos específicos da nova aba
-     ========================================================= */
   #view-auditoria .aud-action{
     display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.4px;
     padding:3px 9px;border-radius:20px;text-transform:uppercase;
@@ -458,9 +597,6 @@
   #view-auditoria td.aud-details{font-size:12.5px;color:var(--txt-2);max-width:420px;word-break:break-word}
   #view-auditoria td.aud-loc{font-size:12px;color:var(--txt-2);white-space:nowrap}
 
-  /* =========================================================
-     ABA PÓ — Novos estilos para a grade de cálculo
-     ========================================================= */
   .po-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 10px; }
   .po-grid-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
   .po-readonly { background: #f0fdf4 !important; border-color: #bbf7d0 !important; color: #15803d !important; font-weight: 700 !important; cursor: default; }
@@ -470,9 +606,6 @@
     .po-grid-bottom { grid-template-columns: 1fr; }
   }
 
-  /* =========================================================
-     ABA CARRINHO — Estilos novos
-     ========================================================= */
   #view-carrinho .panel { margin-bottom: 18px; }
   #view-carrinho .form-body { padding: 18px; }
   #view-carrinho .form-body .field { margin-bottom: 14px; }
@@ -504,9 +637,6 @@
 </head>
 <body>
 
-<!-- ============================================================
-     TELA DE LOGIN
-     ============================================================ -->
 <div class="login-overlay" id="loginOverlay">
   <img src="logo.png" alt="" class="login-bg-logo" onerror="this.style.display='none'">
   <div class="login-card">
@@ -561,9 +691,6 @@
   </div>
 </div>
 
-<!-- ============================================================
-     MODAL DE RECONHECIMENTO FACIAL
-     ============================================================ -->
 <div class="face-overlay" id="faceOverlay">
   <div class="face-card">
     <h2>Reconhecimento Facial</h2>
@@ -583,9 +710,6 @@
   </div>
 </div>
 
-<!-- ============================================================
-     MODAL DE SELFIE (ABA CADASTRO)
-     ============================================================ -->
 <div class="face-overlay" id="selfieOverlay">
   <div class="face-card">
     <h2>Tirar Selfie</h2>
@@ -602,9 +726,6 @@
   </div>
 </div>
 
-<!-- ============================================================
-     MODAL DE SELFIE (ABA USUÁRIOS)
-     ============================================================ -->
 <div class="face-overlay" id="usrSelfieOverlay">
   <div class="face-card">
     <h2>Tirar Selfie / Facial</h2>
@@ -621,9 +742,6 @@
   </div>
 </div>
 
-<!-- ============================================================
-     MODAL DE FOTO DA PEÇA (ABA NOVO)
-     ============================================================ -->
 <div class="face-overlay" id="novoImgOverlay">
   <div class="face-card">
     <h2>Foto da Peça</h2>
@@ -728,9 +846,6 @@
   </section>
 </main>
 
-<!-- ============================================================
-     ABA NOVO — Cadastro rápido de lançamentos
-     ============================================================ -->
 <main class="wrap hidden" id="view-novo">
   <section class="panel">
     <div class="panel-head">
@@ -812,9 +927,6 @@
   </section>
 </main>
 
-<!-- ============================================================
-     ABA PÓ — Cálculo de Pó
-     ============================================================ -->
 <main class="wrap hidden" id="view-po">
   <section class="panel">
     <div class="panel-head">
@@ -946,9 +1058,6 @@
   </section>
 </main>
 
-<!-- ============================================================
-     ABA COTAÇÕES — com o botão "Cotação" agora aqui
-     ============================================================ -->
 <main class="wrap hidden" id="view-cotacoes">
   <section class="panel">
     <div class="panel-head">
@@ -1081,9 +1190,6 @@
   </section>
 </main>
 
-<!-- ============================================================
-     ABA AUDITORIA — registra data, hora, mês, local, usuário e ação
-     ============================================================ -->
 <main class="wrap hidden" id="view-auditoria">
   <section class="panel">
     <div class="panel-head">
@@ -1134,9 +1240,6 @@
   </section>
 </main>
 
-<!-- ============================================================
-     ABA CARRINHO — Carrinho de Compras
-     ============================================================ -->
 <main class="wrap hidden" id="view-carrinho">
   <section class="panel">
     <div class="panel-head">
@@ -1199,9 +1302,6 @@
     </div>
   </section>
 
-  <!-- ============================================================
-       PEDIDOS SALVOS — Histórico de pedidos gerados
-       ============================================================ -->
   <section class="panel">
     <div class="panel-head">
       <h2>Pedidos Salvos</h2>
@@ -3391,6 +3491,21 @@ for(const line of RAW.split('\n')){
   });
 }
 
+/* ===== FIREBASE: restaura catálogo salvo (via localStorage sincronizado) ===== */
+try {
+  const storedCat = localStorage.getItem('paizao_catalisadores');
+  if (storedCat) {
+    const parsed = JSON.parse(storedCat);
+    if (Array.isArray(parsed) && parsed.length) {
+      DATA.length = 0;
+      for (const p of parsed) DATA.push(p);
+    }
+  } else {
+    localStorage.setItem('paizao_catalisadores', JSON.stringify(DATA));
+  }
+} catch(e) { console.warn('[FB] catálogo:', e); }
+/* ===== /FIREBASE ===== */
+
 /* =========================================================
    CONFIGURAÇÕES DE CÁLCULO
    ========================================================= */
@@ -3427,8 +3542,6 @@ function temDuasPedras(it){
    ========================================================= */
 function precoKgBRL(cotacaoUSDozt){ return cotacaoUSDozt * OZT_KG * CFG.dolar; }
 
-/* Cálculo compartilhado — MESMA fórmula usada na aba Pó.
-   Retorna o R$ por kg (após aplicar rendimento e subtrair custo). */
 function calcRskgFromTeores(pd, pt, rh){
   const pPd = CFG.pd * OZT_KG * CFG.dolar;
   const pPt = CFG.pt * OZT_KG * CFG.dolar;
@@ -3451,9 +3564,6 @@ function calcItem(it){
   const brutoKg = vPd + vPt + vRh;
   const rskg = Math.max(0, brutoKg - CFG.custoKg);
 
-  /* R$ / PEÇA — calculado por pedra (idêntico à aba Pó):
-     valor = (R$/kg da Pedra 1 × peso 1) + (R$/kg da Pedra 2 × peso 2)
-     Assim, cada pedra usa seu próprio teor e seu próprio peso. */
   const rskg1 = calcRskgFromTeores(orig.pd || 0, orig.pt || 0, orig.rh || 0);
   const rskg2 = calcRskgFromTeores(orig.pd2 || 0, orig.pt2 || 0, orig.rh2 || 0);
   const rspeca = rskg1 * (orig.peso || 0) + rskg2 * (orig.peso2 || 0);
@@ -3738,6 +3848,8 @@ function saveEdit(original){
     pt2:    n('edPt2'),
     rh2:    n('edRh2')
   };
+  /* ===== FIREBASE: sincroniza catálogo ===== */
+  try { localStorage.setItem('paizao_catalisadores', JSON.stringify(DATA)); } catch(e){}
   if (window.auditLog) window.auditLog('LANCAMENTO_EDITADO', 'Ref #' + originalRef + ' (' + DATA[idx].marca + ' ' + DATA[idx].modelo + ')');
   refreshMarcaOptions();
   render();
@@ -3796,14 +3908,14 @@ document.getElementById('cfgApply').addEventListener('click', () => {
   try{ localStorage.setItem(LS_KEY, JSON.stringify(CFG)); }catch(e){}
   if (window.auditLog) window.auditLog('PARAMETROS_ALTERADOS', 'Aplicou novos parâmetros de cálculo');
   render(); renderCotacoes(); renderPesq(); closeDrawer();
-  if (window.updatePoTab) window.updatePoTab(); // Atualiza a aba Pó
+  if (window.updatePoTab) window.updatePoTab();
 });
 document.getElementById('cfgReset').addEventListener('click', () => {
   CFG = { ...DEFAULT_CFG };
   try{ localStorage.removeItem(LS_KEY); }catch(e){}
   if (window.auditLog) window.auditLog('PARAMETROS_RESTAURADOS', 'Restaurou parâmetros padrão');
   fillDrawer(); render(); renderCotacoes(); renderPesq();
-  if (window.updatePoTab) window.updatePoTab(); // Atualiza a aba Pó
+  if (window.updatePoTab) window.updatePoTab();
 });
 
 /* =========================================================
@@ -3884,7 +3996,6 @@ document.getElementById('btnReload').addEventListener('click', render);
 
 /* =========================================================
    BOTÃO COTAÇÃO — BUSCA AUTOMÁTICA NA KITCO
-   (agora na aba "Cotações & Parâmetros")
    ========================================================= */
 function showToast(message, isError) {
   const toast = document.createElement('div');
@@ -3918,7 +4029,7 @@ async function fetchKitcoPrices() {
       if (!r.ok) continue;
       const t = await r.text();
       if (t && t.length > 500) { html = t; break; }
-    } catch (_) { /* tenta próximo proxy */ }
+    } catch (_) { }
   }
 
   if (!html) {
@@ -3996,7 +4107,7 @@ async function fetchKitcoPrices() {
     renderCotacoes();
     render();
     renderPesq();
-    if (window.updatePoTab) window.updatePoTab(); // Atualiza a aba Pó
+    if (window.updatePoTab) window.updatePoTab();
     showToast(`Cotações atualizadas: Pd US$ ${pd.toFixed(2)}, Pt US$ ${pt.toFixed(2)}, Rh US$ ${rh.toFixed(2)}`);
   } catch (err) {
     showToast('Erro ao processar cotações. Atualize manualmente em "Parâmetros".', true);
@@ -4098,13 +4209,11 @@ function renderPesq(){
     results.innerHTML = pageItems.map(pesqCardHTML).join('');
     results.querySelectorAll('.pesq-card').forEach(card => {
       card.addEventListener('click', (e) => {
-        // Se o clique foi no carrinho, não abre o modal
         if (e.target.closest('.cart')) return;
         const item = all.find(x => x.ref === card.dataset.ref);
         if(item) openModal(item);
       });
     });
-    // Adiciona evento de clique ao ícone do carrinho
     results.querySelectorAll('[data-add-cart]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -4242,6 +4351,8 @@ async function syncSheet(){
     }
     if(!novos.length) throw new Error('Nenhuma peça válida encontrada.');
     DATA.length = 0; novos.forEach(p => DATA.push(p));
+    /* ===== FIREBASE: sincroniza catálogo ===== */
+    try { localStorage.setItem('paizao_catalisadores', JSON.stringify(DATA)); } catch(e){}
     refreshMarcaOptions();
     document.getElementById('tabCount').textContent = DATA.length;
     render();
@@ -4271,7 +4382,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     try{ localStorage.setItem(LS_KEY, JSON.stringify(CFG)); }catch(e){}
     if (window.auditLog) window.auditLog('COTACAO_MANUAL', 'Pd ' + pd + ', Pt ' + pt + ', Rh ' + rh + ', Dólar ' + dolar);
     render(); renderCotacoes(); renderPesq();
-    if (window.updatePoTab) window.updatePoTab(); // Atualiza a aba Pó
+    if (window.updatePoTab) window.updatePoTab();
   } else alert('Valores inválidos. Use números separados por vírgula.');
 });
 
@@ -4287,9 +4398,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 })();
 </script>
 
-<!-- ============================================================
-     SISTEMA DE LOGIN COM RECONHECIMENTO FACIAL + USUÁRIOS PERSISTENTES
-     ============================================================ -->
 <script>
 (function loginSystem(){
   'use strict';
@@ -4312,8 +4420,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if(saved && typeof saved === 'object' && !Array.isArray(saved)) USERS = saved;
   }catch(e){ USERS = {}; }
 
-  if(!USERS.SERGIO) USERS.SERGIO = { ...DEFAULT_SERGIO };
-  if(!USERS.PROGRAMADOR) USERS.PROGRAMADOR = { ...DEFAULT_PROG };
+  /* ===== FIREBASE: marca se algum usuário padrão foi semeado ===== */
+  let seededUsers = false;
+  if(!USERS.SERGIO){ USERS.SERGIO = { ...DEFAULT_SERGIO }; seededUsers = true; }
+  if(!USERS.PROGRAMADOR){ USERS.PROGRAMADOR = { ...DEFAULT_PROG }; seededUsers = true; }
 
   for(const k in USERS){
     const u = USERS[k];
@@ -4343,6 +4453,11 @@ document.getElementById('btnCota').addEventListener('click', () => {
     try{ localStorage.setItem(LS_KEY_USERS, JSON.stringify(USERS)); }catch(e){}
   };
   window.USERS_ALL_TABS = ALL_TABS;
+
+  /* ===== FIREBASE: semeia usuários padrão no Firestore (uma vez) ===== */
+  if (seededUsers) {
+    try { window.saveUsers(); } catch(_){}
+  }
 
   const overlay    = document.getElementById('loginOverlay');
   const userInput  = document.getElementById('loginUser');
@@ -4415,8 +4530,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     document.addEventListener('keydown', once, { once: true });
   }
 
-  // ---- Controle de visibilidade dos botões de topo ----
-  // Somente o usuário PROGRAMADOR enxerga os botões operacionais.
   function updateTopButtonsVisibility(userName){
     const isProgramador = userName === 'PROGRAMADOR';
     ['btnSync','btnCota','btnExport','btnConfig'].forEach(id => {
@@ -4435,7 +4548,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       if (allowed.includes(tab.dataset.tab)) tab.classList.remove('hidden');
       else tab.classList.add('hidden');
     });
-    // NOVO: controla os botões de topo
     updateTopButtonsVisibility(userName);
     const target = allowed.includes('pesquisa')
       ? 'pesquisa'
@@ -4460,7 +4572,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }
     tryFullscreen();
     armFullscreenFallback();
-    // Atualiza o carrinho com o nome e fone do usuário logado
     if (window.updateCartUserInfo) window.updateCartUserInfo();
   }
 
@@ -4491,7 +4602,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       errorEl.textContent = '';
       document.body.style.overflow = 'hidden';
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('hidden'));
-      // Oculta os botões de topo ao sair
       ['btnSync','btnCota','btnExport','btnConfig'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
@@ -4850,9 +4960,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 })();
 </script>
 
-<!-- ============================================================
-     NAVEGAÇÃO POR ENTER (todos os campos de todas as abas)
-     ============================================================ -->
 <script>
 (function enterNavigation(){
   'use strict';
@@ -4887,9 +4994,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 })();
 </script>
 
-<!-- ============================================================
-     ABA CADASTRO — Cadastro de Clientes + Selfie
-     ============================================================ -->
 <script>
 (function cadastroSystem(){
   'use strict';
@@ -4935,13 +5039,11 @@ document.getElementById('btnCota').addEventListener('click', () => {
       .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
-  // Normaliza nome (case-insensitive, sem acento, espaços simples)
   function normalizarNome(s){
     return String(s || '').trim().toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
       .replace(/\s+/g,' ');
   }
-  // Normaliza telefone (apenas dígitos)
   function normalizarFone(s){
     return String(s || '').replace(/\D/g,'');
   }
@@ -5062,7 +5164,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     else if(editIndex > i) editIndex--;
   }
 
-  // Gera uma chave de usuário única (apenas A-Z) a partir do primeiro nome
   function gerarUsuarioUnico(nome, USERS){
     const primeiroNome = (String(nome).trim().split(/\s+/)[0] || '')
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -5071,7 +5172,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     let userKey = primeiroNome;
     if(!USERS[userKey]) return userKey;
 
-    // Se já existe, vai acrescentando letras do nome completo até ficar único
     const todasLetras = String(nome)
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .toUpperCase().replace(/[^A-Z]/g, '');
@@ -5080,7 +5180,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       userKey = todasLetras.slice(0, i + 1);
       i++;
     }
-    // Fallback — acrescenta X até ficar único
     while(USERS[userKey]) userKey += 'X';
     return userKey;
   }
@@ -5091,9 +5190,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if(!nome){ alert('Informe o nome.'); cadNome.focus(); return; }
     if(!fone){ alert('Informe o telefone.'); cadFone.focus(); return; }
 
-    // ---------- VALIDAÇÃO DE DUPLICIDADE (nome completo + telefone) ----------
-    // Só bloqueia se o NOME COMPLETO (incluindo sobrenome) E o TELEFONE forem idênticos.
-    // Se o sobrenome ou o telefone forem diferentes, aceita o cadastro.
     const nomeNorm = normalizarNome(nome);
     const foneNorm = normalizarFone(fone);
 
@@ -5114,7 +5210,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       cadNome.focus();
       return;
     }
-    // ------------------------------------------------------------------
 
     const dados = {
       nome,
@@ -5145,13 +5240,12 @@ document.getElementById('btnCota').addEventListener('click', () => {
       try { window.auditLog(isNovo ? 'CLIENTE_CRIADO' : 'CLIENTE_EDITADO', 'Nome: ' + nome + ' · Fone: ' + fone); } catch(_){}
     }
 
-    // ---------- CRIA USUÁRIO AUTOMATICAMENTE (apenas novos cadastros) ----------
     let usuarioCriadoMsg = '';
     if(isNovo){
       try{
         const USERS = window.USERS;
         if(USERS && typeof window.saveUsers === 'function'){
-          const senha = fone.replace(/\D/g, ''); // só dígitos do celular
+          const senha = fone.replace(/\D/g, '');
           const userKey = gerarUsuarioUnico(nome, USERS);
           if(userKey && senha){
             USERS[userKey] = {
@@ -5173,9 +5267,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
               '\nAcesso: Pesquisa, Pó e Carrinho';
           }
         }
-      }catch(e){ /* silencioso — não quebra o fluxo original */ }
+      }catch(e){ }
     }
-    // -------------------------------------------------------------------------
 
     alert('Cliente salvo com sucesso!\n\nNome: ' + nome + usuarioCriadoMsg);
 
@@ -5262,9 +5355,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 })();
 </script>
 
-<!-- ============================================================
-     ABA USUÁRIOS
-     ============================================================ -->
 <script>
 (function usuariosSystem(){
   'use strict';
@@ -5554,14 +5644,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
   clearFields();
   render();
-  // Expõe o render para que o cadastro de clientes possa atualizar a tabela em tempo real
   window.renderUsuarios = render;
 })();
 </script>
 
-<!-- ============================================================
-     ABA NOVO — Cadastro rápido de lançamentos
-     ============================================================ -->
 <script>
 (function novoSistema(){
   'use strict';
@@ -5766,6 +5852,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
     };
 
     DATA.push(novo);
+    /* ===== FIREBASE: sincroniza catálogo ===== */
+    try { localStorage.setItem('paizao_catalisadores', JSON.stringify(DATA)); } catch(e){}
 
     try { refreshMarcaOptions(); } catch(_){}
     try { render(); } catch(_){}
@@ -5795,9 +5883,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 })();
 </script>
 
-<!-- ============================================================
-     ABA PÓ — Cálculo de Pó
-     ============================================================ -->
 <script>
 (function poSystem(){
   'use strict';
@@ -5805,8 +5890,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
   const $ = id => document.getElementById(id);
   const inputs = ['poPeso1', 'poPd1', 'poPt1', 'poRh1', 'poPeso2', 'poPd2', 'poPt2', 'poRh2'];
 
-  // Usa a MESMA função compartilhada da aba Catalisador:
-  // cada pedra é calculada individualmente e somada.
   function calcPoValue(peso, pd, pt, rh) {
     if (peso <= 0) return 0;
     const rskg = calcRskgFromTeores(pd, pt, rh);
@@ -5840,17 +5923,11 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if (el) el.addEventListener('input', updatePo);
   });
 
-  // Inicializa os valores
   updatePo();
-  
-  // Expõe a função para ser chamada quando os parâmetros de cálculo mudarem
   window.updatePoTab = updatePo;
 })();
 </script>
 
-<!-- ============================================================
-     ABA AUDITORIA — Registra dia, hora, mês, local, usuário e ação
-     ============================================================ -->
 <script>
 (function auditoriaSystem(){
   'use strict';
@@ -6018,7 +6095,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     });
   }
 
-  // Re-renderiza sempre que a aba for clicada (para atualizar visibilidade do botão limpar)
   document.addEventListener('click', e => {
     const tab = e.target.closest('.tab[data-tab="auditoria"]');
     if (tab) {
@@ -6031,9 +6107,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 })();
 </script>
 
-<!-- ============================================================
-     ABA CARRINHO — Sistema de Carrinho de Compras
-     ============================================================ -->
 <script>
 (function carrinhoSystem(){
   'use strict';
@@ -6056,7 +6129,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
   const $ = id => document.getElementById(id);
 
-  // Elementos da UI
   const cartTbody = $('cartTbody');
   const cartEmpty = $('cartEmpty');
   const cartTotalBox = $('cartTotalBox');
@@ -6073,22 +6145,19 @@ document.getElementById('btnCota').addEventListener('click', () => {
   const pedidosEmpty = $('pedidosEmpty');
   const pedidosSub   = $('pedidosSub');
 
-  // Função para formatar moeda
   function fmtMoney(n) {
     return 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  // Função para formatar data
   function formatDate(date) {
     const d = new Date(date);
     return d.toLocaleDateString('pt-BR');
   }
 
-  // Função para salvar no localStorage
   function saveCart() {
     try {
       localStorage.setItem(LS_KEY_CART, JSON.stringify(cartItems));
-    } catch(e) { /* silencioso */ }
+    } catch(e) { }
   }
 
   function savePedidos() {
@@ -6100,7 +6169,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }
   }
 
-  // Gera número único de pedido
   function gerarNumeroPedido() {
     let counter = parseInt(localStorage.getItem(LS_KEY_PEDIDO_COUNTER) || '0', 10);
     if (!isFinite(counter) || counter < 0) counter = 0;
@@ -6116,7 +6184,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     return numero;
   }
 
-  // Verifica permissão para abrir o PDF
   function podeVerPedidoPDF() {
     if (!window.currentUser) return false;
     if (window.currentUser === 'PROGRAMADOR') return true;
@@ -6124,9 +6191,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     return t === 'ADM' || t === 'TRIAGEM' || t === 'FINANCEIRO';
   }
 
-  // =========================================================
-  // CONVERSÃO DE BASE64 / DATA URI EM BLOB (CORRIGIDO)
-  // =========================================================
   function base64ToBlob(base64, mime) {
     const byteChars = atob(base64);
     const byteNumbers = new Array(byteChars.length);
@@ -6192,7 +6256,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
       const url = URL.createObjectURL(blob);
 
-      // Método 1: link programático (mais confiável que window.open)
       const a = document.createElement('a');
       a.href = url;
       a.target = '_blank';
@@ -6202,7 +6265,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       try { a.click(); } catch(e) {}
       document.body.removeChild(a);
 
-      // Fallback: se o navegador bloquear nova aba, força download
       setTimeout(() => {
         try {
           const w = window.open(url, '_blank');
@@ -6282,7 +6344,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     });
   }
 
-  // Função para obter o nome e telefone do usuário logado a partir do cadastro de clientes
   function getUserInfo() {
     const userName = window.currentUserNome || window.currentUser;
     if (!userName) return { nome: 'Usuário não logado', fone: '' };
@@ -6297,17 +6358,14 @@ document.getElementById('btnCota').addEventListener('click', () => {
           return { nome: cliente.nome, fone: cliente.fone || '' };
         }
       }
-    } catch(e) { /* silencioso */ }
+    } catch(e) { }
 
     return { nome: userName, fone: '' };
   }
 
-  // Função para atualizar os campos de nome e telefone no carrinho
   function updateCartUserInfo() {
-    // Esta função é chamada quando o usuário loga
   }
 
-  // Função para adicionar item ao carrinho
   window.addToCart = function(item) {
     if (!window.currentUser) {
       alert('Você precisa estar logado para adicionar itens ao carrinho.');
@@ -6349,7 +6407,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }
   };
 
-  // Função para renderizar o carrinho
   function renderCart() {
     let filteredItems = [...cartItems];
 
@@ -6461,9 +6518,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     });
   }
 
-  // Função para gerar PDF com jsPDF e salvar pedido
   function gerarPDF() {
-    // Aplica os filtros
     let filteredItems = [...cartItems];
 
     const filterNome = cartFilterNome.value.trim().toLowerCase();
@@ -6505,7 +6560,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     let totalGeral = 0;
     filteredItems.forEach(item => totalGeral += item.total || 0);
 
-    // Gera número único do pedido
     let numeroPedido;
     try {
       numeroPedido = gerarNumeroPedido();
@@ -6514,7 +6568,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       return;
     }
 
-    // Cria PDF
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();
@@ -6522,7 +6575,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     const margin = 15;
     const usableW = pageW - margin * 2;
 
-    // Header
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.setTextColor(15, 35, 56);
@@ -6537,14 +6589,12 @@ document.getElementById('btnCota').addEventListener('click', () => {
     doc.setLineWidth(0.6);
     doc.line(margin, 30, pageW - margin, 30);
 
-    // Order info
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor(15, 35, 56);
     doc.text('Pedido Nº: ' + numeroPedido, margin, 40);
     doc.text('Data: ' + new Date().toLocaleDateString('pt-BR'), pageW - margin, 40, { align: 'right' });
 
-    // Client info box
     doc.setFillColor(244, 246, 249);
     doc.roundedRect(margin, 46, usableW, 18, 2, 2, 'F');
     doc.setFont('helvetica', 'normal');
@@ -6553,12 +6603,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
     doc.text('Cliente: ' + (userInfo.nome || '-'), margin + 5, 53);
     doc.text('Telefone: ' + (userInfo.fone || '-'), margin + 5, 60);
 
-    // Table
     let y = 76;
     const colX = [margin + 2, margin + 32, margin + 62, margin + 92, margin + 110, margin + 150];
     const rowH = 7;
 
-    // header
     doc.setFillColor(15, 35, 56);
     doc.rect(margin, y, usableW, 8, 'F');
     doc.setTextColor(255, 255, 255);
@@ -6597,7 +6645,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       y += rowH;
     });
 
-    // Total
     y += 4;
     if (y + 14 > pageH - 15) { doc.addPage(); y = 20; }
     doc.setFillColor(240, 253, 244);
@@ -6609,13 +6656,11 @@ document.getElementById('btnCota').addEventListener('click', () => {
     doc.setFontSize(13);
     doc.text(fmtMoney(totalGeral), pageW - margin - 4, y + 9, { align: 'right' });
 
-    // Footer
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(147, 162, 179);
     doc.text('Paizão Metais · Sistema de Consulta Técnica · Documento gerado automaticamente', pageW / 2, pageH - 10, { align: 'center' });
 
-    // ===== CORREÇÃO: Usa arraybuffer (mais confiável que datauristring) =====
     let pdfDataUri;
     try {
       const arrayBuffer = doc.output('arraybuffer');
@@ -6632,7 +6677,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       return;
     }
 
-    // Cria pedido
     const pedido = {
       numero: numeroPedido,
       data: new Date().toISOString(),
@@ -6651,7 +6695,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     pedidosSalvos.unshift(pedido);
 
-    // Tenta salvar; se falhar por quota, remove e avisa
     if (!savePedidos()) {
       pedidosSalvos.shift();
       alert(
@@ -6661,7 +6704,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       return;
     }
 
-    // Auditoria
     if (window.auditLog) {
       try { window.auditLog('PEDIDO_GERADO', 'Pedido ' + numeroPedido + ' · Total: ' + fmtMoney(totalGeral) + ' · ' + filteredItems.length + ' item(s)'); } catch(_){}
     }
@@ -6673,7 +6715,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
           'Itens: ' + filteredItems.length + '\n\n' +
           'O PDF está disponível na seção "Pedidos Salvos".');
 
-    // ===== LIMPEZA DO CARRINHO APÓS SALVAR O PEDIDO E O PDF =====
     cartItems.length = 0;
     saveCart();
     if (cartFilterNome) cartFilterNome.value = '';
@@ -6681,10 +6722,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if (cartFilterDataInicio) cartFilterDataInicio.value = '';
     if (cartFilterDataFim) cartFilterDataFim.value = '';
     renderCart();
-    // =============================================================
   }
 
-  // Função auxiliar para escapar HTML
   function escHtml(s) {
     return String(s ?? '')
       .replace(/&/g, '&amp;')
@@ -6694,7 +6733,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       .replace(/'/g, '&#39;');
   }
 
-  // Eventos dos filtros
   cartFilterBtn.addEventListener('click', renderCart);
   cartFilterLimparBtn.addEventListener('click', () => {
     cartFilterNome.value = '';
@@ -6704,21 +6742,15 @@ document.getElementById('btnCota').addEventListener('click', () => {
     renderCart();
   });
 
-  // Evento do botão PDF
   cartPdfBtn.addEventListener('click', gerarPDF);
 
-  // Inicializa o carrinho
   renderCart();
   renderPedidos();
 
-  // Expõe a função para atualizar informações do usuário
   window.updateCartUserInfo = updateCartUserInfo;
 })();
 </script>
 
-<!-- ============================================================
-     PWA — MANIFEST + INSTALAÇÃO COMO APP
-     ============================================================ -->
 <script>
 (function pwaSetup(){
   'use strict';
@@ -6754,7 +6786,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
       document.head.appendChild(link);
     }
     link.href = url;
-  } catch(e){ /* silencioso */ }
+  } catch(e){ }
 
   const btnTop   = document.getElementById('btnInstall');
   const btnLogin = document.getElementById('loginInstallBtn');
@@ -6831,9 +6863,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 })();
 </script>
 
-<!-- ============================================================
-     TELA CHEIA AUTOMÁTICA AO ABRIR O SISTEMA
-     ============================================================ -->
 <script>
 (function fullscreenOnLoad(){
   'use strict';
