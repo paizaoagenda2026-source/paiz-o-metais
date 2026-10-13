@@ -1065,7 +1065,7 @@
     <div class="panel-head">
       <h2>Cotações dos Metais</h2>
       <span class="sub">Base de cálculo atual · atualize em "Parâmetros"</span>
-      <button class="btn" id="btnCotacao" title="Buscar cotações atualizadas no site da Kitco">
+      <button class="btn" id="btnCotacao" title="Abrir cotações no site da Kitco">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         Cotação
       </button>
@@ -4011,129 +4011,11 @@ document.getElementById('fMarca').addEventListener('change', e => { state.marca 
 document.getElementById('btnReload').addEventListener('click', render);
 
 /* =========================================================
-   BOTÃO COTAÇÃO — BUSCA AUTOMÁTICA NA KITCO
+   BOTÃO COTAÇÃO — ABRE O SITE DA KITCO EM NOVA ABA
    ========================================================= */
-function showToast(message, isError) {
-  const toast = document.createElement('div');
-  toast.textContent = message;
-  const bg = isError ? '#dc2626' : '#0f9d58';
-  const shadow = isError ? 'rgba(220,38,38,.4)' : 'rgba(15,157,88,.4)';
-  toast.style.cssText = 'position:fixed;top:80px;right:20px;z-index:9999;background:' + bg + ';color:#fff;padding:12px 20px;border-radius:10px;font-family:inherit;font-size:13.5px;font-weight:600;box-shadow:0 8px 24px ' + shadow + ';max-width:340px;line-height:1.4;opacity:0;transform:translateY(-10px);transition:.3s;';
-  document.body.appendChild(toast);
-  requestAnimationFrame(() => { toast.style.opacity = '1'; toast.style.transform = 'none'; });
-  setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(-10px)'; setTimeout(() => toast.remove(), 400); }, 4200);
-}
-
-async function fetchKitcoPrices() {
-  const btn = document.getElementById('btnCotacao');
-  if (!btn) return;
-  const originalText = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerHTML = 'Atualizando...';
-
-  const targetUrl = 'https://www.kitco.com/price/precious-metals';
-  const proxies = [
-    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-    u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
-    u => 'https://corsproxy.io/?url=' + encodeURIComponent(u)
-  ];
-
-  let html = null;
-  for (const build of proxies) {
-    try {
-      const r = await fetch(build(targetUrl), { cache: 'no-store' });
-      if (!r.ok) continue;
-      const t = await r.text();
-      if (t && t.length > 500) { html = t; break; }
-    } catch (_) { }
-  }
-
-  if (!html) {
-    btn.disabled = false;
-    btn.innerHTML = originalText;
-    showToast('Não foi possível buscar cotações automaticamente. Atualize manualmente em "Parâmetros".', true);
-    return;
-  }
-
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-
-    const candidateSelectors = [
-      'tr', 'li', 'div', 'span', 'td',
-      '.BidAskGrid_listify__1liIU',
-      '[class*="BidAskGrid"]',
-      '[class*="price"]',
-      '[class*="spot"]'
-    ];
-
-    let pd = null, pt = null, rh = null;
-
-    for (const selector of candidateSelectors) {
-      const elements = doc.querySelectorAll(selector);
-      for (const el of elements) {
-        const text = el.textContent || '';
-        if (!pd && /Palladium|Paládio/i.test(text) && text.length < 300) {
-          const m = text.match(/([\d,]+\.\d{2})/);
-          if (m) { const v = parseFloat(m[1].replace(/,/g, '')); if (isFinite(v) && v > 100) pd = v; }
-        }
-        if (!pt && /Platinum|Platina/i.test(text) && text.length < 300) {
-          const m = text.match(/([\d,]+\.\d{2})/);
-          if (m) { const v = parseFloat(m[1].replace(/,/g, '')); if (isFinite(v) && v > 100) pt = v; }
-        }
-        if (!rh && /Rhodium|Ródio/i.test(text) && text.length < 300) {
-          const m = text.match(/([\d,]+\.\d{2})/);
-          if (m) { const v = parseFloat(m[1].replace(/,/g, '')); if (isFinite(v) && v > 100) rh = v; }
-        }
-        if (pd !== null && pt !== null && rh !== null) break;
-      }
-      if (pd !== null && pt !== null && rh !== null) break;
-    }
-
-    if (pd === null || pt === null || rh === null) {
-      const allElements = doc.querySelectorAll('*');
-      for (const el of allElements) {
-        const text = el.textContent || '';
-        if (pd === null && /Palladium|Paládio/i.test(text) && text.length < 200) {
-          const m = text.match(/(\d{3,5}\.\d{2})/);
-          if (m) { const v = parseFloat(m[1].replace(/,/g, '')); if (isFinite(v) && v > 100) pd = v; }
-        }
-        if (pt === null && /Platinum|Platina/i.test(text) && text.length < 200) {
-          const m = text.match(/(\d{3,5}\.\d{2})/);
-          if (m) { const v = parseFloat(m[1].replace(/,/g, '')); if (isFinite(v) && v > 100) pt = v; }
-        }
-        if (rh === null && /Rhodium|Ródio/i.test(text) && text.length < 200) {
-          const m = text.match(/(\d{3,5}\.\d{2})/);
-          if (m) { const v = parseFloat(m[1].replace(/,/g, '')); if (isFinite(v) && v > 100) rh = v; }
-        }
-        if (pd !== null && pt !== null && rh !== null) break;
-      }
-    }
-
-    if (pd === null || pt === null || rh === null) {
-      btn.disabled = false;
-      btn.innerHTML = originalText;
-      showToast('Não foi possível extrair as cotações da página. Atualize manualmente em "Parâmetros".', true);
-      return;
-    }
-
-    CFG.pd = pd; CFG.pt = pt; CFG.rh = rh;
-    try { localStorage.setItem(LS_KEY, JSON.stringify(CFG)); } catch (_) {}
-    if (window.auditLog) window.auditLog('COTACAO_ATUALIZADA', 'Pd US$ ' + pd.toFixed(2) + ', Pt US$ ' + pt.toFixed(2) + ', Rh US$ ' + rh.toFixed(2));
-    renderCotacoes();
-    render();
-    renderPesq();
-    if (window.updatePoTab) window.updatePoTab();
-    showToast(`Cotações atualizadas: Pd US$ ${pd.toFixed(2)}, Pt US$ ${pt.toFixed(2)}, Rh US$ ${rh.toFixed(2)}`);
-  } catch (err) {
-    showToast('Erro ao processar cotações. Atualize manualmente em "Parâmetros".', true);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = originalText;
-  }
-}
-
-document.getElementById('btnCotacao').addEventListener('click', fetchKitcoPrices);
+document.getElementById('btnCotacao').addEventListener('click', () => {
+  window.open('https://www.kitco.com/price/precious-metals', '_blank', 'noopener');
+});
 
 /* =========================================================
    ABA PESQUISA (layout de catálogo com cards)
