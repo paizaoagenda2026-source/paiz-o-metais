@@ -6892,5 +6892,67 @@ document.getElementById('btnCota').addEventListener('click', () => {
 })();
 </script>
 
+<!-- ===== FIREBASE: migração automática do catálogo RAW para o Firestore ===== -->
+<script>
+(function migrarCatalogoParaFirebase(){
+  'use strict';
+  var enviando = false;
+  var concluido = false;
+  var tentativas = 0;
+
+  function tentarEnvio(){
+    if (concluido || enviando) return;
+
+    if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return;
+    if (typeof DATA === 'undefined' || !Array.isArray(DATA) || DATA.length === 0) return;
+    if (typeof window.__fbPushNow !== 'function') return;
+
+    var db;
+    try { db = firebase.firestore(); } catch(e){ return; }
+
+    var ref;
+    try { ref = db.collection('paizao_storage').doc('paizao_catalisadores'); }
+    catch(e){ return; }
+
+    enviando = true;
+
+    ref.get().then(function(snap){
+      if (snap.exists){
+        concluido = true;
+        enviando = false;
+        console.log('[FB] Catálogo já existe no Firebase. Nada a fazer.');
+        return;
+      }
+      var json = JSON.stringify(DATA);
+      window.__fbPushNow('paizao_catalisadores', json)
+        .then(function(){
+          concluido = true;
+          enviando = false;
+          console.log('[FB] Catálogo enviado para o Firebase: ' + DATA.length + ' itens.');
+        })
+        .catch(function(err){
+          enviando = false;
+          console.warn('[FB] Erro ao enviar catálogo:', err);
+        });
+    }).catch(function(err){
+      enviando = false;
+      console.warn('[FB] Erro ao verificar catálogo:', err);
+    });
+  }
+
+  // Tenta imediatamente e depois em intervalos até conseguir
+  tentarEnvio();
+  var timer = setInterval(function(){
+    tentativas++;
+    if (concluido || tentativas > 60){
+      clearInterval(timer);
+      return;
+    }
+    tentarEnvio();
+  }, 500);
+})();
+</script>
+<!-- ===== /FIREBASE ===== -->
+
 </body>
 </html>
