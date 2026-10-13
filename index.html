@@ -474,6 +474,8 @@
     border-radius:12px;overflow:hidden;margin-bottom:14px}
   .face-video-wrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
     transform:scaleX(-1)}
+  /* Câmera traseira da foto da peça — NÃO espelhar */
+  #novoImgOverlay .face-video-wrap video{transform:none !important}
   .face-guide{position:absolute;inset:0;pointer-events:none;display:grid;place-items:center}
   .face-guide::before{content:"";width:58%;aspect-ratio:3/4;
     border:2px dashed rgba(255,255,255,.55);border-radius:50%}
@@ -3472,6 +3474,12 @@ for(const line of RAW.split('\n')){
   if(!line.trim()) continue;
   const p = line.split('|');
   if(p.length < 6) continue;
+  // Corrige linhas em que o campo "códigos" foi digitado com "|" em vez de ";"
+  // (ex.: ref 939 – VW KOMBI 98). Reagrupa o campo antes do peso.
+  if(p.length > 9 && !isFinite(parseFloat(p[5]))){
+    p[4] = p[4] + ';' + p[5];
+    p.splice(5, 1);
+  }
   const peso = parseFloat(p[5]);
   if(!isFinite(peso) || peso <= 0) continue;
   DATA.push({
@@ -3490,7 +3498,7 @@ for(const line of RAW.split('\n')){
     rh2: parseFloat(p[12]) || 0
   });
 }
-
+  
 /* ===== FIREBASE: restaura catálogo salvo (via localStorage sincronizado) ===== */
 try {
   const storedCat = localStorage.getItem('paizao_catalisadores');
@@ -3695,6 +3703,14 @@ function render(){
 }
 
 /* =========================================================
+   AUXILIAR — valor por metal em peça com 1 ou 2 pedras
+   ========================================================= */
+function vMetalPeca(t1, w1, t2, w2, precoKgMetal, pay){
+  return ((t1||0)/1000) * precoKgMetal * ((pay||0)/100) * (w1||0)
+       + ((t2||0)/1000) * precoKgMetal * ((pay||0)/100) * (w2||0);
+}
+
+/* =========================================================
    MODAL DE DETALHE
    ========================================================= */
 function openModal(item){
@@ -3740,9 +3756,9 @@ function openModal(item){
           <table class="mini-table">
             <thead><tr><th>Metal</th><th>Teor</th><th>R$/kg metal</th><th>Valor peça</th></tr></thead>
             <tbody>
-              ${linha('Paládio', it.pd, c.pPd, c.vPd * it.peso)}
-              ${linha('Platina', it.pt, c.pPt, c.vPt * it.peso)}
-              ${linha('Ródio',   it.rh, c.pRh, c.vRh * it.peso)}
+              ${linha('Paládio', it.pd, c.pPd, vMetalPeca(orig.pd, orig.peso, orig.pd2, orig.peso2, c.pPd, CFG.payPd))}
+              ${linha('Platina', it.pt, c.pPt, vMetalPeca(orig.pt, orig.peso, orig.pt2, orig.peso2, c.pPt, CFG.payPt))}
+              ${linha('Ródio',   it.rh, c.pRh, vMetalPeca(orig.rh, orig.peso, orig.rh2, orig.peso2, c.pRh, CFG.payRh))}
             </tbody>
           </table>
           <div class="total-box">
@@ -4420,7 +4436,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if(saved && typeof saved === 'object' && !Array.isArray(saved)) USERS = saved;
   }catch(e){ USERS = {}; }
 
-  /* ===== FIREBASE: marca se algum usuário padrão foi semeado ===== */
   let seededUsers = false;
   if(!USERS.SERGIO){ USERS.SERGIO = { ...DEFAULT_SERGIO }; seededUsers = true; }
   if(!USERS.PROGRAMADOR){ USERS.PROGRAMADOR = { ...DEFAULT_PROG }; seededUsers = true; }
@@ -4454,7 +4469,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
   };
   window.USERS_ALL_TABS = ALL_TABS;
 
-  /* ===== FIREBASE: semeia usuários padrão no Firestore (uma vez) ===== */
   if (seededUsers) {
     try { window.saveUsers(); } catch(_){}
   }
@@ -6222,6 +6236,115 @@ document.getElementById('btnCota').addEventListener('click', () => {
     catch(e) { return null; }
   }
 
+  // Gera o PDF sob demanda a partir dos dados do pedido (não é salvo em base64).
+  function gerarPDFBlobFromPedido(pedido) {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      throw new Error('Biblioteca de PDF não carregada.');
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const usableW = pageW - margin * 2;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(15, 35, 56);
+    doc.text('PAIZÃO METAIS', pageW / 2, 20, { align: 'center' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(90, 106, 125);
+    doc.text('Consulta Técnica de Catalisadores', pageW / 2, 26, { align: 'center' });
+
+    doc.setDrawColor(15, 35, 56);
+    doc.setLineWidth(0.6);
+    doc.line(margin, 30, pageW - margin, 30);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(15, 35, 56);
+    doc.text('Pedido Nº: ' + pedido.numero, margin, 40);
+    const dt = new Date(pedido.data);
+    doc.text('Data: ' + dt.toLocaleDateString('pt-BR'), pageW - margin, 40, { align: 'right' });
+
+    doc.setFillColor(244, 246, 249);
+    doc.roundedRect(margin, 46, usableW, 18, 2, 2, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(22, 32, 44);
+    doc.text('Cliente: ' + (pedido.userNome || '-'), margin + 5, 53);
+    doc.text('Telefone: ' + (pedido.fone || '-'), margin + 5, 60);
+
+    let y = 76;
+    const colX = [margin + 2, margin + 32, margin + 62, margin + 92, margin + 110, margin + 150];
+    const rowH = 7;
+
+    doc.setFillColor(15, 35, 56);
+    doc.rect(margin, y, usableW, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('CÓDIGO 1', colX[0], y + 5.5);
+    doc.text('CÓDIGO 2', colX[1], y + 5.5);
+    doc.text('CÓDIGO 3', colX[2], y + 5.5);
+    doc.text('QTD', colX[3], y + 5.5);
+    doc.text('R$ UNITÁRIO', colX[4], y + 5.5);
+    doc.text('R$ TOTAL', colX[5], y + 5.5);
+    y += 8;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(22, 32, 44);
+    doc.setFontSize(9);
+
+    const fmt = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', {
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+    const trunc = (s, max) => {
+      s = String(s || '');
+      return s.length > max ? s.slice(0, max - 1) + '…' : s;
+    };
+
+    const itens = Array.isArray(pedido.itens) ? pedido.itens : [];
+    itens.forEach((item, i) => {
+      if (y + rowH > pageH - 40) { doc.addPage(); y = 20; }
+      if (i % 2 === 0) {
+        doc.setFillColor(250, 251, 252);
+        doc.rect(margin, y, usableW, rowH, 'F');
+      }
+      const cods = item.codigos || [];
+      doc.text(trunc(cods[0], 16), colX[0], y + 4.8);
+      doc.text(trunc(cods[1], 16), colX[1], y + 4.8);
+      doc.text(trunc(cods[2], 16), colX[2], y + 4.8);
+      doc.text(String(item.quantidade || 0), colX[3], y + 4.8);
+      doc.text(fmt(item.unitario), colX[4], y + 4.8);
+      doc.text(fmt(item.total), colX[5], y + 4.8);
+      y += rowH;
+    });
+
+    y += 4;
+    if (y + 14 > pageH - 15) { doc.addPage(); y = 20; }
+    doc.setFillColor(240, 253, 244);
+    doc.roundedRect(pageW - margin - 80, y, 80, 14, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(21, 128, 61);
+    doc.text('TOTAL GERAL:', pageW - margin - 76, y + 9);
+    doc.setFontSize(13);
+    doc.text(fmt(pedido.total), pageW - margin - 4, y + 9, { align: 'right' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(147, 162, 179);
+    doc.text(
+      'Paizão Metais · Sistema de Consulta Técnica · Documento gerado automaticamente',
+      pageW / 2, pageH - 10, { align: 'center' }
+    );
+
+    return doc.output('blob');
+  }
+
   function openPedidoPDF(numero) {
     const pedido = pedidosSalvos.find(p => p.numero === numero);
     if (!pedido) { alert('Pedido não encontrado.'); return; }
@@ -6237,50 +6360,44 @@ document.getElementById('btnCota').addEventListener('click', () => {
         try { window.auditLog('PEDIDO_PDF_ABERTO', 'Abriu PDF do pedido ' + numero); } catch(_){}
       }
 
-      if (!pedido.pdf) {
-        alert('PDF não disponível para este pedido.');
-        return;
+      let blob = null;
+
+      // Pedidos antigos já podem ter o PDF em base64 — continuamos compatíveis.
+      if (pedido.pdf) {
+        if (pedido.pdf.startsWith('data:')) {
+          blob = dataUriToBlob(pedido.pdf);
+        } else {
+          try { blob = base64ToBlob(pedido.pdf, 'application/pdf'); } catch(e) { blob = null; }
+        }
       }
 
-      let blob = null;
-      if (pedido.pdf.startsWith('data:')) {
-        blob = dataUriToBlob(pedido.pdf);
-      } else {
-        try { blob = base64ToBlob(pedido.pdf, 'application/pdf'); } catch(e) { blob = null; }
+      // Se não tiver (novos pedidos), regenera sob demanda — não ocupa espaço.
+      if (!blob) {
+        try { blob = gerarPDFBlobFromPedido(pedido); }
+        catch(e) { blob = null; }
       }
 
       if (!blob) {
-        alert('Erro ao processar o PDF do pedido.');
+        alert('Erro ao gerar o PDF do pedido.');
         return;
       }
 
       const url = URL.createObjectURL(blob);
 
-      const a = document.createElement('a');
-      a.href = url;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      try { a.click(); } catch(e) {}
-      document.body.removeChild(a);
+      // Abre em nova aba (uma única vez); se o popup for bloqueado, faz o download.
+      let opened = null;
+      try { opened = window.open(url, '_blank'); } catch(_) { opened = null; }
+      if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'pedido_' + numero + '.pdf';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        try { a.click(); } catch(_) {}
+        document.body.removeChild(a);
+      }
 
-      setTimeout(() => {
-        try {
-          const w = window.open(url, '_blank');
-          if (!w || w.closed || typeof w.closed === 'undefined') {
-            const dl = document.createElement('a');
-            dl.href = url;
-            dl.download = 'pedido_' + numero + '.pdf';
-            dl.style.display = 'none';
-            document.body.appendChild(dl);
-            dl.click();
-            document.body.removeChild(dl);
-          }
-        } catch(_) {}
-      }, 150);
-
-      setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 120000);
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch(_){} }, 300000);
     } catch(e) {
       alert('Erro ao abrir o PDF: ' + e.message);
     }
@@ -6568,115 +6685,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       return;
     }
 
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-    const margin = 15;
-    const usableW = pageW - margin * 2;
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.setTextColor(15, 35, 56);
-    doc.text('PAIZÃO METAIS', pageW / 2, 20, { align: 'center' });
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(90, 106, 125);
-    doc.text('Consulta Técnica de Catalisadores', pageW / 2, 26, { align: 'center' });
-
-    doc.setDrawColor(15, 35, 56);
-    doc.setLineWidth(0.6);
-    doc.line(margin, 30, pageW - margin, 30);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(15, 35, 56);
-    doc.text('Pedido Nº: ' + numeroPedido, margin, 40);
-    doc.text('Data: ' + new Date().toLocaleDateString('pt-BR'), pageW - margin, 40, { align: 'right' });
-
-    doc.setFillColor(244, 246, 249);
-    doc.roundedRect(margin, 46, usableW, 18, 2, 2, 'F');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    doc.setTextColor(22, 32, 44);
-    doc.text('Cliente: ' + (userInfo.nome || '-'), margin + 5, 53);
-    doc.text('Telefone: ' + (userInfo.fone || '-'), margin + 5, 60);
-
-    let y = 76;
-    const colX = [margin + 2, margin + 32, margin + 62, margin + 92, margin + 110, margin + 150];
-    const rowH = 7;
-
-    doc.setFillColor(15, 35, 56);
-    doc.rect(margin, y, usableW, 8, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('CÓDIGO 1', colX[0], y + 5.5);
-    doc.text('CÓDIGO 2', colX[1], y + 5.5);
-    doc.text('CÓDIGO 3', colX[2], y + 5.5);
-    doc.text('QTD', colX[3], y + 5.5);
-    doc.text('R$ UNITÁRIO', colX[4], y + 5.5);
-    doc.text('R$ TOTAL', colX[5], y + 5.5);
-    y += 8;
-
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(22, 32, 44);
-    doc.setFontSize(9);
-    filteredItems.forEach((item, i) => {
-      if (y + rowH > pageH - 40) {
-        doc.addPage();
-        y = 20;
-      }
-      if (i % 2 === 0) {
-        doc.setFillColor(250, 251, 252);
-        doc.rect(margin, y, usableW, rowH, 'F');
-      }
-      const trunc = (s, max) => {
-        s = String(s || '');
-        return s.length > max ? s.slice(0, max - 1) + '…' : s;
-      };
-      doc.text(trunc(item.codigos[0], 16), colX[0], y + 4.8);
-      doc.text(trunc(item.codigos[1], 16), colX[1], y + 4.8);
-      doc.text(trunc(item.codigos[2], 16), colX[2], y + 4.8);
-      doc.text(String(item.quantidade), colX[3], y + 4.8);
-      doc.text(fmtMoney(item.unitario), colX[4], y + 4.8);
-      doc.text(fmtMoney(item.total), colX[5], y + 4.8);
-      y += rowH;
-    });
-
-    y += 4;
-    if (y + 14 > pageH - 15) { doc.addPage(); y = 20; }
-    doc.setFillColor(240, 253, 244);
-    doc.roundedRect(pageW - margin - 80, y, 80, 14, 2, 2, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(21, 128, 61);
-    doc.text('TOTAL GERAL:', pageW - margin - 76, y + 9);
-    doc.setFontSize(13);
-    doc.text(fmtMoney(totalGeral), pageW - margin - 4, y + 9, { align: 'right' });
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(147, 162, 179);
-    doc.text('Paizão Metais · Sistema de Consulta Técnica · Documento gerado automaticamente', pageW / 2, pageH - 10, { align: 'center' });
-
-    let pdfDataUri;
-    try {
-      const arrayBuffer = doc.output('arraybuffer');
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
-      const chunkSize = 0x8000;
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, i + chunkSize);
-        binary += String.fromCharCode.apply(null, chunk);
-      }
-      pdfDataUri = 'data:application/pdf;base64,' + btoa(binary);
-    } catch (e) {
-      alert('Erro ao processar o PDF: ' + e.message);
-      return;
-    }
-
     const pedido = {
       numero: numeroPedido,
       data: new Date().toISOString(),
@@ -6689,8 +6697,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
         unitario: i.unitario,
         total: i.total
       })),
-      total: totalGeral,
-      pdf: pdfDataUri
+      total: totalGeral
     };
 
     pedidosSalvos.unshift(pedido);
@@ -6709,6 +6716,9 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }
 
     renderPedidos();
+
+    // Abre o PDF uma única vez logo após gerar.
+    setTimeout(() => { try { openPedidoPDF(numeroPedido); } catch(_){} }, 100);
 
     alert('✅ Pedido ' + numeroPedido + ' salvo com sucesso!\n\n' +
           'Total: ' + fmtMoney(totalGeral) + '\n' +
@@ -6940,7 +6950,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     });
   }
 
-  // Tenta imediatamente e depois em intervalos até conseguir
   tentarEnvio();
   var timer = setInterval(function(){
     tentativas++;
@@ -6953,6 +6962,5 @@ document.getElementById('btnCota').addEventListener('click', () => {
 })();
 </script>
 <!-- ===== /FIREBASE ===== -->
-
 </body>
 </html>
