@@ -9,9 +9,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Paizão Metais">
 
-<!-- ===== FIREBASE SDK ===== -->
+<!-- ===== FIREBASE SDK (compat) ===== -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script>
 (function firebaseBoot(){
   'use strict';
@@ -25,80 +26,159 @@
     measurementId: "G-TS41TBX0RL"
   };
   var COLLECTION = 'paizao_storage';
-  var CHUNK_SIZE = 400000;
-  var BOOT_FLAG  = 'fb_boot_done_v1';
+  var CHUNK_SIZE = 250000;
+  var BOOT_FLAG  = 'fb_boot_done_v2';
   var SYNC_KEYS = [
     'paizao_usuarios','paizao_clientes','paizao_carrinho','paizao_pedidos',
     'paizao_pedido_counter','paizao_auditoria','paizao_catalisador_cfg',
     'paizao_catalisadores'
   ];
   if (typeof firebase === 'undefined' || !firebase.initializeApp){
-    console.warn('[FB] SDK indisponível. App em modo local.');
-    return;
+    console.warn('[FB] SDK indisponível. App em modo local.'); return;
   }
-  var db;
+  var db, storage;
   try {
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
+    if (firebase.storage) storage = firebase.storage();
   } catch(e){ console.warn('[FB] init:', e); return; }
 
-  var origSetItem    = Storage.prototype.setItem;
-  var origRemoveItem = Storage.prototype.removeItem;
+  var origSetItem = Storage.prototype.setItem;
   function chunkKey(key, i){ return key + '__chunk__' + i; }
+
+  var chunkCountCache = Object.create(null);
+  var keyLocks = Object.create(null);
+  function withLock(key, fn){
+    var prev = keyLocks[key] || Promise.resolve();
+    var next = prev.catch(function(){}).then(fn);
+    keyLocks[key] = next; return next;
+  }
 
   async function saveKey(key, value){
     if (typeof value !== 'string') value = String(value == null ? '' : value);
-    try {
-      var ref = db.collection(COLLECTION).doc(key);
-      var metaSnap = await ref.get();
-      var oldChunks = metaSnap.exists ? (metaSnap.data().chunks || 1) : 0;
-      if (value.length <= CHUNK_SIZE){
-        await ref.set({
-          value: value, chunks: 1,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        if (oldChunks > 1){
-          var b = db.batch();
-          for (var i = 0; i < oldChunks; i++) b.delete(db.collection(COLLECTION).doc(chunkKey(key, i)));
-          await b.commit().catch(function(){});
+    return withLock(key, async function(){
+      try {
+        var ref = db.collection(COLLECTION).doc(key);
+        var oldChunks = chunkCountCache[key];
+        if (oldChunks === undefined){
+          var metaSnap = await ref.get();
+          oldChunks = metaSnap.exists ? (metaSnap.data().chunks || 1) : 0;
+          chunkCountCache[key] = oldChunks;
         }
-      } else {
-        var total = Math.ceil(value.length / CHUNK_SIZE);
-        var delB = db.batch();
-        for (var j = 0; j < oldChunks; j++) delB.delete(db.collection(COLLECTION).doc(chunkKey(key, j)));
-        await delB.commit().catch(function(){});
-        for (var k = 0; k < total; k++){
-          var chunk = value.substring(k * CHUNK_SIZE, (k + 1) * CHUNK_SIZE);
-          await db.collection(COLLECTION).doc(chunkKey(key, k)).set({ value: chunk });
+        if (value.length <= CHUNK_SIZE){
+          await ref.set({
+            value: value, chunks: 1,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          if (oldChunks > 1){
+            var b = db.batch();
+            for (var i = 0; i < oldChunks; i++) b.delete(db.collection(COLLECTION).doc(chunkKey(key, i)));
+            await b.commit().catch(function(){});
+          }
+          chunkCountCache[key] = 1;
+        } else {
+          var total = Math.ceil(value.length / CHUNK_SIZE);
+          if (oldChunks > 0){
+            var delB = db.batch();
+            for (var j = 0; j < oldChunks; j++) delB.delete(db.collection(COLLECTION).doc(chunkKey(key, j)));
+            await delB.commit().catch(function(){});
+          }
+          var writeB = db.batch();
+          for (var k = 0; k < total; k++){
+            var chunk = value.substring(k * CHUNK_SIZE, (k + 1) * CHUNK_SIZE);
+            writeB.set(db.collection(COLLECTION).doc(chunkKey(key, k)), { value: chunk });
+          }
+          await writeB.commit();
+          await ref.set({
+            value: null, chunks: total,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          chunkCountCache[key] = total;
         }
-        await ref.set({
-          value: null, chunks: total,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+      } catch(e){
+        delete chunkCountCache[key];
+        console.warn('[FB] saveKey(' + key + '):', e.message);
       }
-    } catch(e){ console.warn('[FB] saveKey(' + key + '):', e.message); }
+    });
   }
   window.__fbSaveKey = saveKey;
 
   var pushTimers = {};
+  var isSyncing = false;
   function schedulePush(key, value){
     if (pushTimers[key]) clearTimeout(pushTimers[key]);
     pushTimers[key] = setTimeout(function(){
-      pushTimers[key] = null;
-      saveKey(key, value);
-    }, 500);
+      pushTimers[key] = null; saveKey(key, value);
+    }, 800);
   }
 
   Storage.prototype.setItem = function(key, value){
     try { origSetItem.call(this, key, value); } catch(e){}
-    if (this === window.localStorage && SYNC_KEYS.indexOf(key) !== -1){
+    if (!isSyncing && this === window.localStorage && SYNC_KEYS.indexOf(key) !== -1){
       schedulePush(key, String(value));
     }
   };
-
   window.__fbPushNow = function(key, value){
     if (pushTimers[key]) { clearTimeout(pushTimers[key]); pushTimers[key] = null; }
     return saveKey(key, value);
+  };
+
+  window.__fbStorage = storage;
+  window.__fbDb = db;
+
+  window.__fbCompress = function(dataUrl, maxDim, quality){
+    return new Promise(function(resolve){
+      if (!dataUrl || typeof dataUrl !== 'string' || dataUrl.indexOf('data:') !== 0){
+        resolve(dataUrl); return;
+      }
+      var img = new Image();
+      img.onload = function(){
+        try{
+          var w = img.naturalWidth || img.width;
+          var h = img.naturalHeight || img.height;
+          var scale = Math.min(1, (maxDim || 1200) / Math.max(w, h));
+          var nw = Math.max(1, Math.round(w * scale));
+          var nh = Math.max(1, Math.round(h * scale));
+          var c = document.createElement('canvas');
+          c.width = nw; c.height = nh;
+          var ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0, nw, nh);
+          resolve(c.toDataURL('image/jpeg', quality || 0.75));
+        } catch(e){ resolve(dataUrl); }
+      };
+      img.onerror = function(){ resolve(dataUrl); };
+      img.src = dataUrl;
+    });
+  };
+
+  window.__fbUploadImage = async function(dataUrl, folder){
+    if (!storage || !dataUrl || dataUrl.indexOf('data:') !== 0){
+      return { url: dataUrl, path: null, ok: false };
+    }
+    try{
+      var parts = dataUrl.split(',');
+      var mimeMatch = parts[0].match(/data:([^;]+)/);
+      var mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+      var bstr = atob(parts[1]);
+      var arr = new Uint8Array(bstr.length);
+      for (var i = 0; i < bstr.length; i++) arr[i] = bstr.charCodeAt(i);
+      var blob = new Blob([arr], { type: mime });
+      var path = (folder || 'paizao') + '/' + Date.now() + '_' +
+                 Math.random().toString(36).slice(2,10) + '.jpg';
+      var ref = storage.ref(path);
+      await ref.put(blob, { contentType: 'image/jpeg' });
+      var url = await ref.getDownloadURL();
+      return { url: url, path: path, ok: true };
+    } catch(e){
+      console.warn('[FB] upload:', e.message);
+      return { url: dataUrl, path: null, ok: false, error: e.message };
+    }
+  };
+
+  window.__fbDeleteImage = async function(path){
+    if (!storage || !path) return false;
+    try{ await storage.ref(path).delete(); return true; }
+    catch(e){ console.warn('[FB] deleteImage:', e.message); return false; }
   };
 
   var alreadyBooted = false;
@@ -108,6 +188,7 @@
   (async function bootOnce(){
     var needsReload = false;
     try {
+      isSyncing = true;
       var snap = await db.collection(COLLECTION).get();
       var remote = new Map();
       snap.forEach(function(doc){
@@ -129,6 +210,7 @@
             if (cs.exists) value += (cs.data().value || '');
           }
         }
+        chunkCountCache[key] = chunks;
         var current = null;
         try { current = window.localStorage.getItem(key); } catch(_){}
         if (current !== value){
@@ -142,9 +224,11 @@
         try { lv = window.localStorage.getItem(sk); } catch(_){}
         if (lv !== null) await saveKey(sk, lv).catch(function(){});
       }
+      isSyncing = false;
       try { sessionStorage.setItem(BOOT_FLAG, '1'); } catch(_){}
       if (needsReload) location.reload();
     } catch(e){
+      isSyncing = false;
       console.warn('[FB] boot:', e);
       try { sessionStorage.setItem(BOOT_FLAG, '1'); } catch(_){}
     }
@@ -214,6 +298,7 @@
   .btn:hover{border-color:#c9d4e0;background:#f7f9fb}
   .btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
   .btn.primary:hover{background:var(--navy-2)}
+  .btn:disabled{opacity:.6;cursor:wait}
   .btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2}
   .count{margin-left:auto;font-size:12.5px;color:var(--txt-2);white-space:nowrap}
   .count b{color:var(--navy)}
@@ -237,13 +322,11 @@
   .thumb img{width:100%;height:100%;object-fit:cover;position:relative;z-index:1;display:block}
   .thumb:has(img)::before{
     content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
-    background:url('logo.png') center/38% no-repeat;
-    opacity:.45;
+    background:url('logo.png') center/38% no-repeat;opacity:.45;
   }
   .pesq-card .img:has(img)::before{
     content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
-    background:url('logo.png') center/auto 34% no-repeat;
-    opacity:.4;
+    background:url('logo.png') center/auto 34% no-repeat;opacity:.4;
   }
   .code-chip{display:inline-block;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12px;
     background:#f1f5f9;border:1px solid #e2e8f0;color:#243447;padding:2px 7px;border-radius:6px;
@@ -328,7 +411,6 @@
   .stones-badge{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.3px;
     background:#fef3c7;border:1px solid #fcd34d;color:var(--amber-d);border-radius:20px;
     padding:1px 7px;margin-left:6px;vertical-align:middle}
-
   #view-pesquisa .pesq-container{max-width:980px;margin:0 auto}
   .pesq-brand{background:#fff;border:1px solid var(--line);border-radius:var(--radius);
     padding:16px 18px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow)}
@@ -392,7 +474,6 @@
   .pesq-page-label{letter-spacing:.8px}
   .pesq-count-info{text-align:center;font-size:11.5px;color:#93a2b3;
     text-transform:none;letter-spacing:0;font-weight:500;margin-top:6px}
-
   @media(max-width:640px){
     .topbar{padding:0 14px}.wrap{padding:14px}.tabs{padding:0 8px;top:64px}
     .tab{padding:13px 12px;font-size:13px}
@@ -401,7 +482,6 @@
     .pesq-card .img{height:140px}
     .pesq-logo-text{font-size:22px}
   }
-
   .login-overlay{position:fixed;inset:0;z-index:9999;
     background:linear-gradient(180deg,#0d1e30 0%,#0f2338 55%,#14283f 100%);
     display:flex;align-items:center;justify-content:center;padding:20px;
@@ -445,22 +525,12 @@
   .login-btn.install:hover{background:#e2e8f0;color:#0f2338}
   .login-foot{text-align:center;font-size:10.5px;color:#93a2b3;
     margin-top:22px;letter-spacing:.5px}
-
   .login-bg-logo{
-    position:absolute;
-    top:50%; left:50%;
-    transform:translate(-50%,-50%);
-    width:auto;
-    max-width:min(620px,75vw);
-    max-height:min(620px,75vh);
-    opacity:.16;
-    z-index:0;
-    pointer-events:none;
-    user-select:none;
-    object-fit:contain;
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:auto;max-width:min(620px,75vw);max-height:min(620px,75vh);
+    opacity:.16;z-index:0;pointer-events:none;user-select:none;object-fit:contain;
     filter:drop-shadow(0 12px 40px rgba(0,0,0,.4));
   }
-
   .face-overlay{position:fixed;inset:0;background:rgba(12,24,38,.88);
     backdrop-filter:blur(4px);z-index:10000;display:none;
     align-items:center;justify-content:center;padding:20px}
@@ -472,31 +542,23 @@
   .face-card > p{font-size:13px;color:#5a6a7d;margin-bottom:16px}
   .face-video-wrap{position:relative;width:100%;aspect-ratio:4/3;background:#0f2338;
     border-radius:12px;overflow:hidden;margin-bottom:14px}
-  .face-video-wrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-    transform:scaleX(-1)}
-  /* Câmera traseira da foto da peça — NÃO espelhar */
+  .face-video-wrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
   #novoImgOverlay .face-video-wrap video{transform:none !important}
   .face-guide{position:absolute;inset:0;pointer-events:none;display:grid;place-items:center}
   .face-guide::before{content:"";width:58%;aspect-ratio:3/4;
     border:2px dashed rgba(255,255,255,.55);border-radius:50%}
-  #novoImgOverlay .face-guide::before{
-    width:82%;aspect-ratio:4/3;border-radius:12px;
-  }
-  .face-status{font-size:13.5px;font-weight:600;color:#0f2338;
-    margin-bottom:12px;min-height:20px}
+  #novoImgOverlay .face-guide::before{width:82%;aspect-ratio:4/3;border-radius:12px;}
+  .face-status{font-size:13.5px;font-weight:600;color:#0f2338;margin-bottom:12px;min-height:20px}
   .face-progress{display:flex;justify-content:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
   .face-progress .step{font-size:11.5px;font-weight:700;padding:5px 11px;
-    border-radius:20px;background:#f1f5f9;color:#5a6a7d;border:1px solid #e2e8f0;
-    transition:.2s}
+    border-radius:20px;background:#f1f5f9;color:#5a6a7d;border:1px solid #e2e8f0;transition:.2s}
   .face-progress .step.active{background:#fef3c7;color:#b45309;border-color:#fcd34d;
     transform:scale(1.1);box-shadow:0 0 0 3px rgba(245,158,11,.2)}
   .face-progress .step.done{background:#d1fae5;color:#065f46;border-color:#6ee7b7}
   .face-card .login-btn.face-cancel{max-width:220px;margin:0 auto;
     background:#5a6a7d;height:42px;font-size:13px}
   .face-card .login-btn.face-cancel:hover{background:#475569}
-
   @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
-
   #view-cadastro .form-body{padding:18px}
   #view-cadastro .form-body .field{margin-bottom:14px}
   #view-cadastro .selfie-box{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -508,7 +570,6 @@
   #view-cadastro td.cad-selfie .thumb{width:52px;height:52px}
   #view-cadastro .cad-actions{white-space:nowrap;text-align:center}
   #view-cadastro .cad-actions .row-edit{margin:0 2px}
-
   #view-usuarios .form-body{padding:18px}
   #view-usuarios .form-body .field{margin-bottom:14px}
   #view-usuarios .selfie-box{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -522,7 +583,6 @@
   #view-usuarios .usr-actions .row-edit{margin:0 2px}
   #view-usuarios .usr-user-cell{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12px}
   #view-usuarios .usr-user-cell .code-chip{margin-bottom:2px}
-
   .type-badge{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.4px;
     padding:2px 8px;border-radius:20px;text-transform:uppercase}
   .type-badge.ADM{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca}
@@ -533,13 +593,11 @@
   .type-badge.FINANCEIRO{background:#cffafe;color:#155e75;border:1px solid #a5f3fc}
   .perm-chip{display:inline-block;font-size:10.5px;font-weight:600;background:#f1f5f9;color:#475569;
     border:1px solid #e2e8f0;padding:1px 6px;border-radius:6px;margin:1px 2px 1px 0}
-
   .usr-perm-box{display:flex;flex-wrap:wrap;gap:14px;padding:10px 12px;
     background:#fafbfc;border:1px solid var(--line);border-radius:9px}
   .usr-perm-box label{display:flex;gap:6px;align-items:center;font-size:13.5px;
     color:var(--txt);cursor:pointer;font-weight:500;user-select:none}
   .usr-perm-box input[type="checkbox"]{width:16px;height:16px;cursor:pointer;accent-color:var(--amber)}
-
   #view-novo .form-body{padding:18px}
   #view-novo .form-body .field{margin-bottom:14px}
   #view-novo .selfie-box{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -547,32 +605,20 @@
     border:2px solid var(--line);display:none;background:#f4f6f9}
   #view-novo .form-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
   #view-novo .grid2 > .field{margin-bottom:0}
-  #view-novo .pedra-block{
-    background:#fafbfc;border:1px solid var(--line);border-radius:10px;
-    padding:14px 16px 4px;margin-top:4px;
-  }
+  #view-novo .pedra-block{background:#fafbfc;border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px 4px;margin-top:4px;}
   #view-novo .pedra-block .sec-title{margin-bottom:12px}
   #view-novo .pedra-block .grid2{gap:14px}
   #view-novo .pedra-block .field{margin-bottom:14px}
-  #view-novo .pedra-opcional{
-    text-transform:none;font-weight:400;color:#93a2b3;
-    font-size:11px;letter-spacing:0;margin-left:6px;
-  }
+  #view-novo .pedra-opcional{text-transform:none;font-weight:400;color:#93a2b3;
+    font-size:11px;letter-spacing:0;margin-left:6px;}
   #novoRefHint{font-weight:600;color:#0a8f4a}
-
-  .brand .brand-logo{
-    width:44px;height:44px;object-fit:contain;display:block;flex-shrink:0;
-    filter:drop-shadow(0 3px 10px rgba(245,158,11,.4));
-  }
-  .pesq-logo-img{
-    width:56px;height:56px;object-fit:contain;display:block;flex-shrink:0;
-    filter:drop-shadow(0 4px 12px rgba(10,143,74,.25));
-  }
-  .login-mark-img{
-    width:90px;height:90px;object-fit:contain;margin:0 auto 16px;display:block;
-    filter:drop-shadow(0 6px 20px rgba(245,158,11,.35));
-  }
-
+  .brand .brand-logo{width:44px;height:44px;object-fit:contain;display:block;flex-shrink:0;
+    filter:drop-shadow(0 3px 10px rgba(245,158,11,.4));}
+  .pesq-logo-img{width:56px;height:56px;object-fit:contain;display:block;flex-shrink:0;
+    filter:drop-shadow(0 4px 12px rgba(10,143,74,.25));}
+  .login-mark-img{width:90px;height:90px;object-fit:contain;margin:0 auto 16px;display:block;
+    filter:drop-shadow(0 6px 20px rgba(245,158,11,.35));}
   @media(max-width:480px){
     .login-card{padding:32px 22px 22px;border-radius:18px}
     .login-brand h1{font-size:20px}
@@ -580,12 +626,9 @@
     .login-field input{height:50px}
     .login-btn{height:50px}
   }
-
-  #view-auditoria .aud-action{
-    display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.4px;
+  #view-auditoria .aud-action{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.4px;
     padding:3px 9px;border-radius:20px;text-transform:uppercase;
-    background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;white-space:nowrap;
-  }
+    background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;white-space:nowrap;}
   #view-auditoria .aud-action.aud-login{background:#d1fae5;color:#065f46;border-color:#6ee7b7}
   #view-auditoria .aud-action.aud-logout{background:#fee2e2;color:#991b1b;border-color:#fecaca}
   #view-auditoria .aud-action.aud-limpa{background:#fef3c7;color:#b45309;border-color:#fcd34d}
@@ -598,7 +641,6 @@
   #view-auditoria td.aud-user{font-weight:700;color:var(--navy);white-space:nowrap}
   #view-auditoria td.aud-details{font-size:12.5px;color:var(--txt-2);max-width:420px;word-break:break-word}
   #view-auditoria td.aud-loc{font-size:12px;color:var(--txt-2);white-space:nowrap}
-
   .po-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 10px; }
   .po-grid-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
   .po-readonly { background: #f0fdf4 !important; border-color: #bbf7d0 !important; color: #15803d !important; font-weight: 700 !important; cursor: default; }
@@ -607,7 +649,6 @@
     .po-grid { grid-template-columns: repeat(2, 1fr); }
     .po-grid-bottom { grid-template-columns: 1fr; }
   }
-
   #view-carrinho .panel { margin-bottom: 18px; }
   #view-carrinho .form-body { padding: 18px; }
   #view-carrinho .form-body .field { margin-bottom: 14px; }
@@ -789,9 +830,7 @@
 </header>
 
 <nav class="tabs">
-  <button class="tab" data-tab="catalisador">
-    Catalisador <span class="badge" id="tabCount">0</span>
-  </button>
+  <button class="tab" data-tab="catalisador">Catalisador <span class="badge" id="tabCount">0</span></button>
   <button class="tab" data-tab="novo">Novo</button>
   <button class="tab" data-tab="po">Pó</button>
   <button class="tab active" data-tab="pesquisa">Pesquisa</button>
@@ -875,12 +914,10 @@
           <input type="text" id="novoModelo" autocomplete="off" placeholder="Ex.: PALIO 1.5">
         </div>
       </div>
-
       <div class="field">
         <label for="novoCod">Códigos separados (por ";")</label>
         <input type="text" id="novoCod" placeholder="Ex.: 208027923R;C555;112701536000" autocomplete="off" spellcheck="false">
       </div>
-
       <div class="pedra-block">
         <div class="sec-title">Pedra 1</div>
         <div class="grid2">
@@ -890,7 +927,6 @@
           <div class="field"><label for="novoRh1">Teor Rh 1 (g/kg)</label><input type="number" step="0.001" min="0" id="novoRh1"></div>
         </div>
       </div>
-
       <div class="pedra-block">
         <div class="sec-title">Pedra 2 <span class="pedra-opcional">(opcional — será somada à Pedra 1)</span></div>
         <div class="grid2">
@@ -900,7 +936,6 @@
           <div class="field"><label for="novoRh2">Teor Rh 2 (g/kg)</label><input type="number" step="0.001" min="0" id="novoRh2"></div>
         </div>
       </div>
-
       <div class="field" style="margin-top:16px">
         <label>Imagem da peça</label>
         <div class="selfie-box">
@@ -917,7 +952,6 @@
           <button type="button" class="btn hidden" id="novoImgRemove">Remover imagem</button>
         </div>
       </div>
-
       <div class="form-actions">
         <button type="button" class="btn primary" id="novoSalvarBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -1002,7 +1036,6 @@
         <div class="field"><label for="cadConta">Conta</label><input type="text" id="cadConta" autocomplete="off"></div>
         <div class="field"><label for="cadPix">PIX</label><input type="text" id="cadPix" autocomplete="off"></div>
       </div>
-
       <div class="field" style="margin-top:6px">
         <label>Selfie</label>
         <div class="selfie-box">
@@ -1014,7 +1047,6 @@
           <button type="button" class="btn hidden" id="cadSelfieRemove">Remover selfie</button>
         </div>
       </div>
-
       <div class="form-actions">
         <button type="button" class="btn primary" id="cadSalvarBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -1024,7 +1056,6 @@
       </div>
     </div>
   </section>
-
   <section class="panel">
     <div class="panel-head">
       <h2>Clientes Cadastrados</h2>
@@ -1035,17 +1066,8 @@
         <thead>
           <tr>
             <th style="width:70px">Selfie</th>
-            <th>Nome</th>
-            <th>Fone</th>
-            <th>Bairro</th>
-            <th>Cidade</th>
-            <th>UF</th>
-            <th>CPF</th>
-            <th>RG</th>
-            <th>Banco</th>
-            <th>Agência</th>
-            <th>Conta</th>
-            <th>PIX</th>
+            <th>Nome</th><th>Fone</th><th>Bairro</th><th>Cidade</th><th>UF</th>
+            <th>CPF</th><th>RG</th><th>Banco</th><th>Agência</th><th>Conta</th><th>PIX</th>
             <th style="text-align:center;width:120px">Ações</th>
           </tr>
         </thead>
@@ -1125,7 +1147,6 @@
           </select>
         </div>
       </div>
-
       <div class="field">
         <label>Permissões de acesso (abas liberadas)</label>
         <div class="usr-perm-box">
@@ -1140,7 +1161,6 @@
           <label><input type="checkbox" data-perm="carrinho"> Carrinho</label>
         </div>
       </div>
-
       <div class="field">
         <label>Facial (selfie usada no login por reconhecimento)</label>
         <div class="selfie-box">
@@ -1152,7 +1172,6 @@
           <button type="button" class="btn hidden" id="usrSelfieRemove">Remover facial</button>
         </div>
       </div>
-
       <div class="form-actions">
         <button type="button" class="btn primary" id="usrSalvarBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -1162,7 +1181,6 @@
       </div>
     </div>
   </section>
-
   <section class="panel">
     <div class="panel-head">
       <h2>Usuários Cadastrados</h2>
@@ -1173,11 +1191,7 @@
         <thead>
           <tr>
             <th style="width:70px">Facial</th>
-            <th>Nome</th>
-            <th>Usuário</th>
-            <th>Senha</th>
-            <th>Tipo</th>
-            <th>Permissões</th>
+            <th>Nome</th><th>Usuário</th><th>Senha</th><th>Tipo</th><th>Permissões</th>
             <th style="text-align:center;width:120px">Ações</th>
           </tr>
         </thead>
@@ -1252,38 +1266,20 @@
         Gerar PDF
       </button>
     </div>
-
     <div class="cart-filter">
-      <div class="field">
-        <label for="cartFilterNome">Pesquisar por Nome</label>
-        <input type="text" id="cartFilterNome" placeholder="Nome do cliente…">
-      </div>
-      <div class="field">
-        <label for="cartFilterFone">Pesquisar por Fone</label>
-        <input type="text" id="cartFilterFone" placeholder="Telefone…">
-      </div>
-      <div class="field">
-        <label for="cartFilterDataInicio">Data Início</label>
-        <input type="date" id="cartFilterDataInicio">
-      </div>
-      <div class="field">
-        <label for="cartFilterDataFim">Data Fim</label>
-        <input type="date" id="cartFilterDataFim">
-      </div>
+      <div class="field"><label for="cartFilterNome">Pesquisar por Nome</label><input type="text" id="cartFilterNome" placeholder="Nome do cliente…"></div>
+      <div class="field"><label for="cartFilterFone">Pesquisar por Fone</label><input type="text" id="cartFilterFone" placeholder="Telefone…"></div>
+      <div class="field"><label for="cartFilterDataInicio">Data Início</label><input type="date" id="cartFilterDataInicio"></div>
+      <div class="field"><label for="cartFilterDataFim">Data Fim</label><input type="date" id="cartFilterDataFim"></div>
       <button class="btn" id="cartFilterBtn">Filtrar</button>
       <button class="btn" id="cartFilterLimparBtn" style="background:#f1f5f9;">Limpar Filtros</button>
     </div>
-
     <div class="table-scroll">
       <table>
         <thead>
           <tr>
-            <th>Nome</th>
-            <th>Fone</th>
-            <th>Data</th>
-            <th>Código 1</th>
-            <th>Código 2</th>
-            <th>Código 3</th>
+            <th>Nome</th><th>Fone</th><th>Data</th>
+            <th>Código 1</th><th>Código 2</th><th>Código 3</th>
             <th style="width:80px">Qtd</th>
             <th style="width:120px">R$ Unitário</th>
             <th style="width:120px">R$ Total</th>
@@ -1303,7 +1299,6 @@
       <span class="value" id="cartTotalValue">R$ 0,00</span>
     </div>
   </section>
-
   <section class="panel">
     <div class="panel-head">
       <h2>Pedidos Salvos</h2>
@@ -1315,8 +1310,7 @@
           <tr>
             <th style="width:140px">Número</th>
             <th style="width:160px">Data/Hora</th>
-            <th>Cliente</th>
-            <th>Fone</th>
+            <th>Cliente</th><th>Fone</th>
             <th style="width:90px;text-align:right">Itens</th>
             <th style="width:130px;text-align:right">Total</th>
             <th style="width:130px;text-align:center">Ações</th>
@@ -1355,7 +1349,6 @@
     <button class="btn primary" id="cfgApply">Aplicar</button>
   </div>
 </aside>
-
 <script>
 /* =========================================================
    LINK DA PLANILHA (CSV PÚBLICO)
@@ -1364,14 +1357,9 @@ const SHEET_CSV_URL = "COLE_AQUI";
 
 /* =========================================================
    BASE DE DADOS — CATALISADORES
-   (Vazia — os produtos são cadastrados via aba "Novo" e
-   sincronizados automaticamente com o Firestore)
    ========================================================= */
 const RAW = ``;
 
-/* =========================================================
-   Parse da base compacta
-   ========================================================= */
 const DATA = [];
 for(const line of RAW.split('\n')){
   if(!line.trim()) continue;
@@ -1400,7 +1388,6 @@ for(const line of RAW.split('\n')){
   });
 }
 
-/* ===== FIREBASE: restaura catálogo salvo (via localStorage sincronizado) ===== */
 try {
   const storedCat = localStorage.getItem('paizao_catalisadores');
   if (storedCat) {
@@ -1413,7 +1400,6 @@ try {
     localStorage.setItem('paizao_catalisadores', JSON.stringify(DATA));
   }
 } catch(e) { console.warn('[FB] catálogo:', e); }
-/* ===== /FIREBASE ===== */
 
 /* =========================================================
    CONFIGURAÇÕES DE CÁLCULO
@@ -1431,9 +1417,6 @@ try{
   if(saved && typeof saved === 'object') CFG = { ...DEFAULT_CFG, ...saved };
 }catch(e){}
 
-/* =========================================================
-   SOMA DE DUAS PEDRAS (mesma linha)
-   ========================================================= */
 function somaPedras(it){
   return {
     peso: (it.peso || 0) + (it.peso2 || 0),
@@ -1446,9 +1429,6 @@ function temDuasPedras(it){
   return (it.peso2 || 0) > 0 || (it.pd2 || 0) > 0 || (it.pt2 || 0) > 0 || (it.rh2 || 0) > 0;
 }
 
-/* =========================================================
-   CÁLCULOS
-   ========================================================= */
 function precoKgBRL(cotacaoUSDozt){ return cotacaoUSDozt * OZT_KG * CFG.dolar; }
 
 function calcRskgFromTeores(pd, pt, rh){
@@ -1472,17 +1452,12 @@ function calcItem(it){
   const vRh = (it.rh / 1000) * pRh * (CFG.payRh / 100);
   const brutoKg = vPd + vPt + vRh;
   const rskg = Math.max(0, brutoKg - CFG.custoKg);
-
   const rskg1 = calcRskgFromTeores(orig.pd || 0, orig.pt || 0, orig.rh || 0);
   const rskg2 = calcRskgFromTeores(orig.pd2 || 0, orig.pt2 || 0, orig.rh2 || 0);
   const rspeca = rskg1 * (orig.peso || 0) + rskg2 * (orig.peso2 || 0);
-
   return { pPd, pPt, pRh, vPd, vPt, vRh, brutoKg, rskg, rspeca };
 }
 
-/* =========================================================
-   UTILITÁRIOS
-   ========================================================= */
 const norm = s => String(s ?? '').toLowerCase()
   .normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
 const fmtNum = (n, d=2) => Number(n).toLocaleString('pt-BR',{minimumFractionDigits:d, maximumFractionDigits:d});
@@ -1492,9 +1467,12 @@ const esc = s => String(s ?? '')
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
   .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
+/* imgSrc ATUALIZADO: reconhece URLs (Storage/Drive) além de IDs do Drive */
 function imgSrc(img, size){
   if(!img) return '';
-  if(typeof img === 'string' && img.startsWith('data:')) return img;
+  if(typeof img !== 'string') return '';
+  if(img.startsWith('data:')) return img;
+  if(/^https?:\/\//i.test(img)) return img;
   return `https://drive.google.com/thumbnail?id=${img}&sz=${size || 'w300'}`;
 }
 function thumbHTML(img, size){
@@ -1505,14 +1483,8 @@ function thumbHTML(img, size){
   </div>`;
 }
 
-/* =========================================================
-   ESTADO / FILTROS
-   ========================================================= */
 const state = { q:'', marca:'', sortKey:'ref', sortDir:'asc' };
 
-/* =========================================================
-   RENDER — TABELA
-   ========================================================= */
 function getFiltered(){
   const q = norm(state.q);
   let list = DATA.filter(it => {
@@ -1560,7 +1532,7 @@ function render(){
   let html = '';
   for(const it of list){
     const c = it._c;
-    const cods = (it.cod && it.cod.length) 
+    const cods = (it.cod && it.cod.length)
       ? ((it.cod||[]).slice(0,3).map((x,i)=>
           `<span class="code-chip${i===0?' primary':''}">${esc(x)}</span>`).join('') +
          ((it.cod||[]).length > 3 ? `<span class="code-chip">+${it.cod.length-3}</span>` : ''))
@@ -1603,17 +1575,11 @@ function render(){
   });
 }
 
-/* =========================================================
-   AUXILIAR — valor por metal em peça com 1 ou 2 pedras
-   ========================================================= */
 function vMetalPeca(t1, w1, t2, w2, precoKgMetal, pay){
   return ((t1||0)/1000) * precoKgMetal * ((pay||0)/100) * (w1||0)
        + ((t2||0)/1000) * precoKgMetal * ((pay||0)/100) * (w2||0);
 }
 
-/* =========================================================
-   MODAL DE DETALHE
-   ========================================================= */
 function openModal(item){
   const it = item;
   const orig = item._orig || item;
@@ -1687,9 +1653,6 @@ document.addEventListener('keydown', e => {
   if(e.key === 'Escape'){ closeModal(); closeDrawer(); }
 });
 
-/* =========================================================
-   MODAL DE EDIÇÃO DE LANÇAMENTO
-   ========================================================= */
 function openEditModal(item){
   const orig = item._orig || item;
   window.__editingOrig = orig;
@@ -1749,10 +1712,19 @@ function saveEdit(original){
   const v = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
   const n = id => { const el = document.getElementById(id); if(!el) return 0; const x = parseFloat(el.value); return isFinite(x) ? x : 0; };
   const cod = v('edCod').split(';').map(s => s.trim()).filter(Boolean);
+
+  const antigo = DATA[idx];
+  const novoImg = v('edImg');
+
+  /* Se a imagem foi trocada e a antiga estava no Storage, remove a antiga */
+  if (antigo && antigo.storagePath && antigo.img !== novoImg && window.__fbDeleteImage){
+    try { window.__fbDeleteImage(antigo.storagePath); } catch(_){}
+  }
+
   DATA[idx] = {
     ...DATA[idx],
     ref:    v('edRef') || DATA[idx].ref,
-    img:    v('edImg'),
+    img:    novoImg,
     marca:  v('edMarca') || 'OUTROS',
     modelo: v('edModelo') || '—',
     cod:    cod.length ? cod : ['—'],
@@ -1765,7 +1737,7 @@ function saveEdit(original){
     pt2:    n('edPt2'),
     rh2:    n('edRh2')
   };
-  /* ===== FIREBASE: sincroniza catálogo ===== */
+  if (antigo.img !== novoImg) DATA[idx].storagePath = '';
   try { localStorage.setItem('paizao_catalisadores', JSON.stringify(DATA)); } catch(e){}
   if (window.auditLog) window.auditLog('LANCAMENTO_EDITADO', 'Ref #' + originalRef + ' (' + DATA[idx].marca + ' ' + DATA[idx].modelo + ')');
   refreshMarcaOptions();
@@ -1774,9 +1746,6 @@ function saveEdit(original){
   closeModal();
 }
 
-/* =========================================================
-   OPTIONS DE MARCA
-   ========================================================= */
 function refreshMarcaOptions(){
   const sel = document.getElementById('fMarca');
   const cur = sel.value;
@@ -1794,9 +1763,6 @@ function refreshMarcaOptions(){
   }
 }
 
-/* =========================================================
-   DRAWER DE PARÂMETROS
-   ========================================================= */
 const drawer = document.getElementById('drawer');
 const scrim  = document.getElementById('scrim');
 function fillDrawer(){
@@ -1835,9 +1801,6 @@ document.getElementById('cfgReset').addEventListener('click', () => {
   if (window.updatePoTab) window.updatePoTab();
 });
 
-/* =========================================================
-   ABA COTAÇÕES
-   ========================================================= */
 function renderCotacoes(){
   const pPd = precoKgBRL(CFG.pd);
   const pPt = precoKgBRL(CFG.pt);
@@ -1868,9 +1831,6 @@ document.addEventListener('click', e => {
   if(btn){ e.stopPropagation(); openDrawer(); }
 });
 
-/* =========================================================
-   TABS
-   ========================================================= */
 document.querySelectorAll('.tab').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
@@ -1894,14 +1854,18 @@ document.querySelectorAll('.tab').forEach(btn => {
 });
 
 /* =========================================================
-   BUSCA / FILTROS / ORDENAÇÃO
+   BUSCA COM DEBOUNCE (reduz renderizações desnecessárias)
    ========================================================= */
 const qInput = document.getElementById('q');
 const searchBox = document.getElementById('searchBox');
+let qTimer = null;
 qInput.addEventListener('input', () => {
-  state.q = qInput.value;
   searchBox.classList.toggle('has-value', qInput.value.length > 0);
-  render();
+  if (qTimer) clearTimeout(qTimer);
+  qTimer = setTimeout(() => {
+    state.q = qInput.value;
+    render();
+  }, 200);
 });
 document.getElementById('clearQ').addEventListener('click', () => {
   qInput.value = ''; state.q = '';
@@ -1911,15 +1875,25 @@ document.getElementById('clearQ').addEventListener('click', () => {
 document.getElementById('fMarca').addEventListener('change', e => { state.marca = e.target.value; render(); });
 document.getElementById('btnReload').addEventListener('click', render);
 
-/* =========================================================
-   BOTÃO COTAÇÃO — ABRE O SITE DA KITCO EM NOVA ABA
-   ========================================================= */
+document.querySelectorAll('thead th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if(state.sortKey === key){
+      state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      state.sortKey = key;
+      state.sortDir = 'asc';
+    }
+    render();
+  });
+});
+
 document.getElementById('btnCotacao').addEventListener('click', () => {
   window.open('https://www.kitco.com/price/precious-metals', '_blank', 'noopener');
 });
 
 /* =========================================================
-   ABA PESQUISA (layout de catálogo com cards)
+   ABA PESQUISA
    ========================================================= */
 const pesqState = { q:'', marca:'', page:1, perPage:12 };
 
@@ -2025,13 +1999,20 @@ function renderPesq(){
   renderPesqPagination(all.length, pesqState.page, totalPages);
 }
 
+/* Pesquisa com debounce */
+let pesqTimer = null;
 document.getElementById('pesqQ').addEventListener('input', e => {
-  pesqState.q = e.target.value;
-  pesqState.page = 1;
-  renderPesq();
+  const v = e.target.value;
+  if (pesqTimer) clearTimeout(pesqTimer);
+  pesqTimer = setTimeout(() => {
+    pesqState.q = v;
+    pesqState.page = 1;
+    renderPesq();
+  }, 200);
 });
 document.getElementById('pesqQ').addEventListener('keydown', e => {
   if(e.key === 'Enter'){
+    if (pesqTimer) clearTimeout(pesqTimer);
     pesqState.q = e.target.value;
     pesqState.page = 1;
     renderPesq();
@@ -2043,14 +2024,12 @@ document.getElementById('pesqMarca').addEventListener('change', e => {
   renderPesq();
 });
 document.getElementById('pesqBtn').addEventListener('click', () => {
+  if (pesqTimer) clearTimeout(pesqTimer);
   pesqState.q = document.getElementById('pesqQ').value;
   pesqState.page = 1;
   renderPesq();
 });
 
-/* =========================================================
-   EXPORTAR CSV
-   ========================================================= */
 document.getElementById('btnExport').addEventListener('click', () => {
   const list = getFiltered();
   if(!list.length){ alert('Nenhum resultado para exportar.'); return; }
@@ -2070,9 +2049,6 @@ document.getElementById('btnExport').addEventListener('click', () => {
   if (window.auditLog) window.auditLog('EXPORTACAO_CSV', list.length + ' registros exportados');
 });
 
-/* =========================================================
-   SINCRONIZAÇÃO COM GOOGLE SHEETS
-   ========================================================= */
 function extractDriveId(url){
   if(!url) return '';
   const m = String(url).match(/[?&]id=([A-Za-z0-9_-]+)/) || String(url).match(/\/d\/([A-Za-z0-9_-]+)/);
@@ -2150,7 +2126,6 @@ async function syncSheet(){
     }
     if(!novos.length) throw new Error('Nenhuma peça válida encontrada.');
     DATA.length = 0; novos.forEach(p => DATA.push(p));
-    /* ===== FIREBASE: sincroniza catálogo ===== */
     try { localStorage.setItem('paizao_catalisadores', JSON.stringify(DATA)); } catch(e){}
     refreshMarcaOptions();
     document.getElementById('tabCount').textContent = DATA.length;
@@ -2166,9 +2141,6 @@ async function syncSheet(){
 }
 document.getElementById('btnSync').addEventListener('click', syncSheet);
 
-/* =========================================================
-   BOTÃO COTAÇÕES (MANUAL — PROMPT)
-   ========================================================= */
 document.getElementById('btnCota').addEventListener('click', () => {
   const p = prompt(
     'Cotações em US$/ozt — formato: Pd,Pt,Rh,Dólar\nEx: 1287,962,5250,4.25',
@@ -2185,9 +2157,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
   } else alert('Valores inválidos. Use números separados por vírgula.');
 });
 
-/* =========================================================
-   INIT
-   ========================================================= */
 (function init(){
   refreshMarcaOptions();
   document.getElementById('tabCount').textContent = DATA.length;
@@ -2517,14 +2486,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     });
   }
 
-  function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-  }
-
   let MOVEMENT_SEQUENCE = [];
   const MOVE_LABEL = {
     up:    'olhe para CIMA ⬆️',
@@ -2649,7 +2610,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     const usersWithSelfie = {};
     for (const [k, v] of Object.entries(USERS)){
-      if (v && typeof v.selfie === 'string' && v.selfie.startsWith('data:image')){
+      if (v && typeof v.selfie === 'string' && (v.selfie.startsWith('data:image') || /^https?:\/\//i.test(v.selfie))){
         usersWithSelfie[k] = v;
       }
     }
@@ -2756,41 +2717,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
   });
 })();
 </script>
-
-<script>
-(function enterNavigation(){
-  'use strict';
-  function isVisible(el){
-    if(!el) return false;
-    const rect = el.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0;
-  }
-  function getFocusable(){
-    const sel = 'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])';
-    return Array.from(document.querySelectorAll(sel)).filter(isVisible);
-  }
-  document.addEventListener('keydown', e => {
-    if(e.key !== 'Enter') return;
-    if(e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
-    const el = e.target;
-    if(!el || !el.matches) return;
-    if(!el.matches('input, select, textarea')) return;
-    if(el.tagName === 'TEXTAREA') return;
-    const all = getFocusable();
-    const idx = all.indexOf(el);
-    if(idx < 0) return;
-    if(idx < all.length - 1){
-      e.preventDefault();
-      const next = all[idx + 1];
-      next.focus();
-      if(next.matches('input[type="text"], input[type="password"], input[type="search"], input[type="number"]')){
-        try { next.select(); } catch(_){}
-      }
-    }
-  }, true);
-})();
-</script>
-
 <script>
 (function cadastroSystem(){
   'use strict';
@@ -2953,6 +2879,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if(!c) return;
     if(!confirm(`Excluir o cliente "${c.nome}"?`)) return;
 
+    if (c.selfieStoragePath && window.__fbDeleteImage){
+      try { window.__fbDeleteImage(c.selfieStoragePath); } catch(_){}
+    }
+
     clientes.splice(i, 1);
     saveClientes();
     if (window.auditLog) window.auditLog('CLIENTE_EXCLUIDO', 'Nome: ' + (c.nome || '#id'));
@@ -2981,7 +2911,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     return userKey;
   }
 
-  function salvar(){
+  async function salvar(){
     const nome = cadNome.value.trim();
     const fone = cadFone.value.trim();
     if(!nome){ alert('Informe o nome.'); cadNome.focus(); return; }
@@ -3008,6 +2938,27 @@ document.getElementById('btnCota').addEventListener('click', () => {
       return;
     }
 
+    /* Upload da selfie para o Storage (se ainda for base64) */
+    let selfieFinal = selfieData || '';
+    let selfiePath = '';
+    const anterior = (editIndex >= 0) ? clientes[editIndex] : null;
+    if (anterior && anterior.selfie === selfieFinal) {
+      selfiePath = anterior.selfieStoragePath || '';
+    } else if (selfieFinal && selfieFinal.indexOf('data:') === 0 && window.__fbUploadImage) {
+      cadSalvarBtn.disabled = true;
+      try {
+        const up = await window.__fbUploadImage(selfieFinal, 'selfies_clientes');
+        if (up.ok) { selfieFinal = up.url; selfiePath = up.path; }
+      } finally {
+        cadSalvarBtn.disabled = false;
+      }
+    }
+
+    /* Se trocou a selfie, apaga a antiga do Storage */
+    if (anterior && anterior.selfieStoragePath && anterior.selfieStoragePath !== selfiePath){
+      if (window.__fbDeleteImage) { try { window.__fbDeleteImage(anterior.selfieStoragePath); } catch(_){} }
+    }
+
     const dados = {
       nome,
       end: cadEnd.value.trim(),
@@ -3021,7 +2972,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
       agencia: cadAgencia.value.trim(),
       conta: cadConta.value.trim(),
       pix: cadPix.value.trim(),
-      selfie: selfieData || ''
+      selfie: selfieFinal || '',
+      selfieStoragePath: selfiePath || ''
     };
 
     const isNovo = editIndex < 0;
@@ -3051,7 +3003,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
               type: 'COMPRADOR',
               label: 'Comprador',
               permissions: ['pesquisa', 'po', 'carrinho'],
-              selfie: selfieData || '',
+              selfie: selfieFinal || '',
+              selfieStoragePath: selfiePath || '',
               nome: nome
             };
             window.saveUsers();
@@ -3119,7 +3072,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     selfieOverlay.classList.remove('open');
   }
 
-  function capturarSelfie(){
+  async function capturarSelfie(){
     if(!selfieStream){ alert('Câmera não está ativa.'); return; }
     const w = selfieVideo.videoWidth || 640;
     const h = selfieVideo.videoHeight || 480;
@@ -3130,7 +3083,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
     ctx.translate(w, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(selfieVideo, 0, 0, w, h);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    let dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    if (window.__fbCompress) {
+      try { dataUrl = await window.__fbCompress(dataUrl, 800, 0.75); } catch(_){}
+    }
     selfieData = dataUrl;
     cadSelfiePrev.src = dataUrl;
     cadSelfiePrev.style.display = 'block';
@@ -3297,6 +3253,9 @@ document.getElementById('btnCota').addEventListener('click', () => {
     const u = USERS[userKey];
     if(!u) return;
     if(!confirm(`Excluir o usuário "${userKey}"?`)) return;
+    if (u.selfieStoragePath && window.__fbDeleteImage){
+      try { window.__fbDeleteImage(u.selfieStoragePath); } catch(_){}
+    }
     delete USERS[userKey];
     if (window.saveUsers) window.saveUsers();
     if (window.auditLog) window.auditLog('USUARIO_EXCLUIDO', 'Login: ' + userKey);
@@ -3304,7 +3263,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if(editUser === userKey) clearFields();
   }
 
-  function salvar(){
+  async function salvar(){
     const USERS = window.USERS || {};
     const nome = usrNome.value.trim();
     const user = usrUser.value.trim().toUpperCase().replace(/[^A-Z]/g,'');
@@ -3329,18 +3288,39 @@ document.getElementById('btnCota').addEventListener('click', () => {
     const roleMap = { ADM: 'admin', COMPRADOR: 'comprador', AGREGADO: 'agregado', CLIENTE: 'cliente', TRIAGEM: 'triagem', FINANCEIRO: 'financeiro' };
 
     const existing = USERS[finalUser] || {};
+
+    /* Upload da selfie (se ainda for base64) */
+    let selfieFinal = selfieData || '';
+    let selfiePath = existing.selfieStoragePath || '';
+    if (existing.selfie === selfieFinal) {
+      /* nada mudou — mantém path */
+    } else if (selfieFinal && selfieFinal.indexOf('data:') === 0 && window.__fbUploadImage) {
+      usrSalvarBtn.disabled = true;
+      try {
+        const up = await window.__fbUploadImage(selfieFinal, 'selfies_usuarios');
+        if (up.ok) { selfieFinal = up.url; selfiePath = up.path; }
+      } finally {
+        usrSalvarBtn.disabled = false;
+      }
+    } else if (!selfieFinal) {
+      selfiePath = '';
+    }
+
+    /* Se trocou a selfie, apaga a antiga do Storage */
+    if (existing.selfieStoragePath && existing.selfieStoragePath !== selfiePath){
+      if (window.__fbDeleteImage) { try { window.__fbDeleteImage(existing.selfieStoragePath); } catch(_){} }
+    }
+
     USERS[finalUser] = {
       pass,
       role: roleMap[tipo] || 'comprador',
       type: tipo,
       label: labelMap[tipo] || tipo,
       permissions: perms,
-      selfie: selfieData || '',
+      selfie: selfieFinal || '',
+      selfieStoragePath: selfiePath,
       nome
     };
-    if(!selfieData && existing.selfie && existing.selfie === usrSelfiePrev.src){
-      USERS[finalUser].selfie = existing.selfie;
-    }
 
     if (window.saveUsers) window.saveUsers();
     if (window.auditLog) window.auditLog(editUser ? 'USUARIO_EDITADO' : 'USUARIO_CRIADO', 'Login: ' + finalUser + ', Tipo: ' + tipo);
@@ -3410,7 +3390,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     selfieOverlay.classList.remove('open');
   }
 
-  function capturarSelfie(){
+  async function capturarSelfie(){
     if(!selfieStream){ alert('Câmera não está ativa.'); return; }
     const w = selfieVideo.videoWidth || 640;
     const h = selfieVideo.videoHeight || 480;
@@ -3421,7 +3401,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
     ctx.translate(w, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(selfieVideo, 0, 0, w, h);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    let dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    if (window.__fbCompress) {
+      try { dataUrl = await window.__fbCompress(dataUrl, 800, 0.75); } catch(_){}
+    }
     selfieData = dataUrl;
     usrSelfiePrev.src = dataUrl;
     usrSelfiePrev.style.display = 'block';
@@ -3512,9 +3495,14 @@ document.getElementById('btnCota').addEventListener('click', () => {
       return;
     }
     const reader = new FileReader();
-    reader.onload = ev => {
-      try { setPreview(ev.target.result); }
-      catch(_){ alert('Não foi possível ler a imagem.'); }
+    reader.onload = async ev => {
+      try {
+        let dataUrl = ev.target.result;
+        if (window.__fbCompress) {
+          try { dataUrl = await window.__fbCompress(dataUrl, 1200, 0.75); } catch(_){}
+        }
+        setPreview(dataUrl);
+      } catch(_){ alert('Não foi possível ler a imagem.'); }
     };
     reader.onerror = () => alert('Falha ao ler o arquivo.');
     reader.readAsDataURL(file);
@@ -3563,7 +3551,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     novoImgOverlay.classList.remove('open');
   }
 
-  function capturarNovaFoto(){
+  async function capturarNovaFoto(){
     if(!novoStream){ alert('Câmera não está ativa.'); return; }
     const w = novoImgVideo.videoWidth || 640;
     const h = novoImgVideo.videoHeight || 480;
@@ -3571,7 +3559,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(novoImgVideo, 0, 0, w, h);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    let dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    if (window.__fbCompress) {
+      try { dataUrl = await window.__fbCompress(dataUrl, 1200, 0.75); } catch(_){}
+    }
     setPreview(dataUrl);
     closeNovoCamera();
   }
@@ -3605,7 +3596,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
   }
   $('novoLimparBtn').addEventListener('click', limparCampos);
 
-  function salvarNovo(){
+  async function salvarNovo(){
+    const btn = $('novoSalvarBtn');
+    if (btn.disabled) return;
+
     const refInformada = novoRef.value.trim();
     const refFinal = refInformada || nextRef();
 
@@ -3630,11 +3624,33 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     const codigos = novoCod.value.split(';').map(s => s.trim()).filter(Boolean);
 
-    let imgValue = fotoData ? fotoData : novoImg.value.trim();
+    /* Se há foto capturada/arquivo: envia para o Storage (fallback: base64) */
+    let imgValue = novoImg.value.trim();
+    let storagePath = '';
+    if (fotoData) {
+      if (fotoData.indexOf('http') === 0 || /^[A-Za-z0-9_-]{20,}$/.test(fotoData)) {
+        imgValue = fotoData;
+      } else if (window.__fbUploadImage) {
+        btn.disabled = true;
+        btn.innerHTML = 'Enviando imagem…';
+        try {
+          const up = await window.__fbUploadImage(fotoData, 'catalisadores');
+          imgValue = up.url;
+          storagePath = up.path || '';
+        } catch(_){ imgValue = fotoData; }
+        finally {
+          btn.disabled = false;
+          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Salvar na aba Catalisador';
+        }
+      } else {
+        imgValue = fotoData;
+      }
+    }
 
     const novo = {
       ref:    String(refFinal),
       img:    imgValue,
+      storagePath: storagePath,
       marca:  novoMarca.value.trim() || 'OUTROS',
       modelo: novoModelo.value.trim() || '—',
       cod:    codigos.length ? codigos : ['—'],
@@ -3649,7 +3665,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     };
 
     DATA.push(novo);
-    /* ===== FIREBASE: sincroniza catálogo ===== */
     try { localStorage.setItem('paizao_catalisadores', JSON.stringify(DATA)); } catch(e){}
 
     try { refreshMarcaOptions(); } catch(_){}
@@ -3886,9 +3901,14 @@ document.getElementById('btnCota').addEventListener('click', () => {
   }
 
   if (audSearch) {
+    let audTimer = null;
     audSearch.addEventListener('input', e => {
-      searchQ = e.target.value;
-      renderAudit();
+      const v = e.target.value;
+      if (audTimer) clearTimeout(audTimer);
+      audTimer = setTimeout(() => {
+        searchQ = v;
+        renderAudit();
+      }, 200);
     });
   }
 
@@ -3942,6 +3962,12 @@ document.getElementById('btnCota').addEventListener('click', () => {
   const pedidosEmpty = $('pedidosEmpty');
   const pedidosSub   = $('pedidosSub');
 
+  function escHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
   function fmtMoney(n) {
     return 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
@@ -3952,9 +3978,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
   }
 
   function saveCart() {
-    try {
-      localStorage.setItem(LS_KEY_CART, JSON.stringify(cartItems));
-    } catch(e) { }
+    try { localStorage.setItem(LS_KEY_CART, JSON.stringify(cartItems)); } catch(e) { }
   }
 
   function savePedidos() {
@@ -4019,7 +4043,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     catch(e) { return null; }
   }
 
-  // Gera o PDF sob demanda a partir dos dados do pedido (não é salvo em base64).
   function gerarPDFBlobFromPedido(pedido) {
     if (!window.jspdf || !window.jspdf.jsPDF) {
       throw new Error('Biblioteca de PDF não carregada.');
@@ -4248,7 +4271,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     try {
       const clientes = JSON.parse(localStorage.getItem('paizao_clientes') || '[]');
       if (Array.isArray(clientes)) {
-        const cliente = clientes.find(c => 
+        const cliente = clientes.find(c =>
           c.nome && c.nome.toLowerCase() === userName.toLowerCase()
         );
         if (cliente) {
@@ -4271,8 +4294,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     const userInfo = getUserInfo();
 
-    const existingIndex = cartItems.findIndex(cartItem => 
-      cartItem.ref === item.ref && 
+    const existingIndex = cartItems.findIndex(cartItem =>
+      cartItem.ref === item.ref &&
       JSON.stringify(cartItem.codigos) === JSON.stringify(item.cod.slice(0, 3))
     );
 
@@ -4282,7 +4305,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     } else {
       const codigos = (item.cod || []).slice(0, 3);
       const unitario = item._c ? item._c.rspeca : 0;
-      
+
       cartItems.push({
         ref: item.ref,
         nome: userInfo.nome,
@@ -4297,7 +4320,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     saveCart();
     renderCart();
-    
+
     const cartTab = document.querySelector('.tab[data-tab="carrinho"]');
     if (cartTab) {
       cartTab.click();
@@ -4309,14 +4332,14 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     const filterNome = cartFilterNome.value.trim().toLowerCase();
     if (filterNome) {
-      filteredItems = filteredItems.filter(item => 
+      filteredItems = filteredItems.filter(item =>
         item.nome.toLowerCase().includes(filterNome)
       );
     }
 
     const filterFone = cartFilterFone.value.trim().toLowerCase();
     if (filterFone) {
-      filteredItems = filteredItems.filter(item => 
+      filteredItems = filteredItems.filter(item =>
         item.fone.toLowerCase().includes(filterFone)
       );
     }
@@ -4345,8 +4368,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
     let totalGeral = 0;
 
     filteredItems.forEach((item, index) => {
-      const realIndex = cartItems.findIndex(cartItem => 
-        cartItem.ref === item.ref && 
+      const realIndex = cartItems.findIndex(cartItem =>
+        cartItem.ref === item.ref &&
         JSON.stringify(cartItem.codigos) === JSON.stringify(item.codigos)
       );
 
@@ -4387,7 +4410,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
         if (index >= 0 && index < cartItems.length) {
           cartItems[index].quantidade = qtd;
           cartItems[index].total = qtd * cartItems[index].unitario;
-          
+
           const totalInput = this.closest('tr').querySelector('.cart-total');
           totalInput.value = fmtMoney(cartItems[index].total);
 
@@ -4420,14 +4443,14 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     const filterNome = cartFilterNome.value.trim().toLowerCase();
     if (filterNome) {
-      filteredItems = filteredItems.filter(item => 
+      filteredItems = filteredItems.filter(item =>
         item.nome.toLowerCase().includes(filterNome)
       );
     }
 
     const filterFone = cartFilterFone.value.trim().toLowerCase();
     if (filterFone) {
-      filteredItems = filteredItems.filter(item => 
+      filteredItems = filteredItems.filter(item =>
         item.fone.toLowerCase().includes(filterFone)
       );
     }
@@ -4511,15 +4534,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if (cartFilterDataInicio) cartFilterDataInicio.value = '';
     if (cartFilterDataFim) cartFilterDataFim.value = '';
     renderCart();
-  }
-
-  function escHtml(s) {
-    return String(s ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
 
   cartFilterBtn.addEventListener('click', renderCart);
@@ -4678,6 +4692,65 @@ document.getElementById('btnCota').addEventListener('click', () => {
   document.addEventListener('click', once, { once: true });
   document.addEventListener('keydown', once, { once: true });
   document.addEventListener('touchstart', once, { once: true });
+})();
+</script>
+
+<script>
+(function enterNavigation(){
+  'use strict';
+  function isVisible(el){
+    if(!el) return false;
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  }
+  function getFocusable(){
+    const sel = 'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])';
+    return Array.from(document.querySelectorAll(sel)).filter(isVisible);
+  }
+  document.addEventListener('keydown', e => {
+    if(e.key !== 'Enter') return;
+    if(e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+    const el = e.target;
+    if(!el || !el.matches) return;
+    if(!el.matches('input, select, textarea')) return;
+    if(el.tagName === 'TEXTAREA') return;
+    const all = getFocusable();
+    const idx = all.indexOf(el);
+    if(idx < 0) return;
+    if(idx < all.length - 1){
+      e.preventDefault();
+      const next = all[idx + 1];
+      next.focus();
+      if(next.matches('input[type="text"], input[type="password"], input[type="search"], input[type="number"]')){
+        try { next.select(); } catch(_){}
+      }
+    }
+  }, true);
+})();
+</script>
+
+<script>
+/* =========================================================
+   SERVICE WORKER — registro
+   ========================================================= */
+(function registerSW(){
+  if (!('serviceWorker' in navigator)) return;
+  if (location.protocol === 'file:') return;
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js', { scope: './' })
+      .then(function(reg){
+        reg.addEventListener('updatefound', function(){
+          var nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', function(){
+            if (nw.state === 'installed' && navigator.serviceWorker.controller){
+              /* nova versão pronta em background */
+            }
+          });
+        });
+      })
+      .catch(function(e){ console.warn('[SW] register:', e && e.message); });
+  });
 })();
 </script>
 
