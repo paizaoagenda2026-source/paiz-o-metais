@@ -126,9 +126,6 @@
   window.__fbStorage = storage;
   window.__fbDb = db;
 
-  /* ============================================================
-     CORREÇÃO: __fbCompress com timeout (evita travar o app)
-     ============================================================ */
   window.__fbCompress = function(dataUrl, maxDim, quality){
     return new Promise(function(resolve){
       if (!dataUrl || typeof dataUrl !== 'string' || dataUrl.indexOf('data:') !== 0){
@@ -158,9 +155,6 @@
     });
   };
 
-  /* ============================================================
-     CORREÇÃO: __fbUploadImage com timeout (evita travar o app)
-     ============================================================ */
   window.__fbUploadImage = function(dataUrl, folder){
     if (!storage || !dataUrl || dataUrl.indexOf('data:') !== 0){
       return Promise.resolve({ url: dataUrl, path: null, ok: false });
@@ -3355,25 +3349,16 @@ document.getElementById('btnCota').addEventListener('click', () => {
       return;
     }
 
-    /* Upload da selfie para o Storage (se ainda for base64) */
+    /* Selfie: salva IMEDIATAMENTE em base64; upload ao Storage roda em background */
     let selfieFinal = selfieData || '';
     let selfiePath = '';
     const anterior = (editIndex >= 0) ? clientes[editIndex] : null;
+    let precisaUpload = false;
     if (anterior && anterior.selfie === selfieFinal) {
       selfiePath = anterior.selfieStoragePath || '';
     } else if (selfieFinal && selfieFinal.indexOf('data:') === 0 && window.__fbUploadImage) {
-      cadSalvarBtn.disabled = true;
-      try {
-        const up = await window.__fbUploadImage(selfieFinal, 'selfies_clientes');
-        if (up.ok) { selfieFinal = up.url; selfiePath = up.path; }
-      } finally {
-        cadSalvarBtn.disabled = false;
-      }
-    }
-
-    /* Se trocou a selfie, apaga a antiga do Storage */
-    if (anterior && anterior.selfieStoragePath && anterior.selfieStoragePath !== selfiePath){
-      if (window.__fbDeleteImage) { try { window.__fbDeleteImage(anterior.selfieStoragePath); } catch(_){} }
+      precisaUpload = true;
+      /* mantém base64 localmente; upload será disparado após salvar */
     }
 
     const dados = {
@@ -3441,6 +3426,45 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     renderCadastro();
     clearFields();
+
+    /* Upload em background — não bloqueia a UI */
+    if (precisaUpload) {
+      const b64 = selfieFinal;
+      window.__fbUploadImage(b64, 'selfies_clientes').then(function(up){
+        if (!up || !up.ok) return;
+        /* Atualiza cliente(s) que ainda têm o base64 */
+        let changed = false;
+        for (let i = 0; i < clientes.length; i++) {
+          if (clientes[i].selfie === b64) {
+            clientes[i].selfie = up.url;
+            clientes[i].selfieStoragePath = up.path || '';
+            changed = true;
+          }
+        }
+        if (changed) {
+          saveClientes();
+          try { renderCadastro(); } catch(_){}
+        }
+        /* Atualiza usuário criado automaticamente (mesmo base64) */
+        const USERS = window.USERS || {};
+        let usersChanged = false;
+        for (const k in USERS) {
+          if (USERS[k] && USERS[k].selfie === b64) {
+            USERS[k].selfie = up.url;
+            USERS[k].selfieStoragePath = up.path || '';
+            usersChanged = true;
+          }
+        }
+        if (usersChanged) {
+          if (typeof window.saveUsers === 'function') { try { window.saveUsers(); } catch(_){} }
+          if (typeof window.renderUsuarios === 'function') { try { window.renderUsuarios(); } catch(_){} }
+        }
+        /* Remove selfie antiga do Storage */
+        if (anterior && anterior.selfieStoragePath && anterior.selfieStoragePath !== up.path){
+          if (window.__fbDeleteImage) { try { window.__fbDeleteImage(anterior.selfieStoragePath); } catch(_){} }
+        }
+      }).catch(function(e){ console.warn('[FB] selfie upload bg:', e && e.message); });
+    }
   }
 
   cadSalvarBtn.addEventListener('click', salvar);
@@ -3722,26 +3746,16 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     const existing = USERS[finalUser] || {};
 
-    /* Upload da selfie (se ainda for base64) */
+    /* Selfie: salva IMEDIATAMENTE em base64; upload em background */
     let selfieFinal = selfieData || '';
     let selfiePath = existing.selfieStoragePath || '';
+    let precisaUpload = false;
     if (existing.selfie === selfieFinal) {
       /* nada mudou — mantém path */
     } else if (selfieFinal && selfieFinal.indexOf('data:') === 0 && window.__fbUploadImage) {
-      usrSalvarBtn.disabled = true;
-      try {
-        const up = await window.__fbUploadImage(selfieFinal, 'selfies_usuarios');
-        if (up.ok) { selfieFinal = up.url; selfiePath = up.path; }
-      } finally {
-        usrSalvarBtn.disabled = false;
-      }
+      precisaUpload = true;
     } else if (!selfieFinal) {
       selfiePath = '';
-    }
-
-    /* Se trocou a selfie, apaga a antiga do Storage */
-    if (existing.selfieStoragePath && existing.selfieStoragePath !== selfiePath){
-      if (window.__fbDeleteImage) { try { window.__fbDeleteImage(existing.selfieStoragePath); } catch(_){} }
     }
 
     USERS[finalUser] = {
@@ -3760,6 +3774,26 @@ document.getElementById('btnCota').addEventListener('click', () => {
     render();
     alert('Usuário salvo com sucesso!\n\nLogin: ' + finalUser + '\nSenha: ' + pass);
     clearFields();
+
+    /* Upload em background */
+    if (precisaUpload) {
+      const b64 = selfieFinal;
+      const userKey = finalUser;
+      window.__fbUploadImage(b64, 'selfies_usuarios').then(function(up){
+        if (!up || !up.ok) return;
+        const U = window.USERS || {};
+        if (U[userKey] && U[userKey].selfie === b64) {
+          U[userKey].selfie = up.url;
+          U[userKey].selfieStoragePath = up.path || '';
+          if (window.saveUsers) { try { window.saveUsers(); } catch(_){} }
+          try { render(); } catch(_){}
+        }
+        /* Remove selfie antiga do Storage */
+        if (existing.selfieStoragePath && existing.selfieStoragePath !== up.path){
+          if (window.__fbDeleteImage) { try { window.__fbDeleteImage(existing.selfieStoragePath); } catch(_){} }
+        }
+      }).catch(function(e){ console.warn('[FB] selfie upload bg:', e && e.message); });
+    }
   }
 
   usrTipo.addEventListener('change', () => {
@@ -4074,28 +4108,23 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     const codigos = novoCod.value.split(';').map(s => s.trim()).filter(Boolean);
 
-    /* Se há foto capturada/arquivo: envia para o Storage (fallback: base64) */
+    /* Foto: salva IMEDIATAMENTE em base64; upload em background */
     let imgValue = novoImg.value.trim();
     let storagePath = '';
+    let precisaUpload = false;
     if (fotoData) {
       if (fotoData.indexOf('http') === 0 || /^[A-Za-z0-9_-]{20,}$/.test(fotoData)) {
         imgValue = fotoData;
       } else if (window.__fbUploadImage) {
-        btn.disabled = true;
-        btn.innerHTML = 'Enviando imagem…';
-        try {
-          const up = await window.__fbUploadImage(fotoData, 'catalisadores');
-          imgValue = up.url;
-          storagePath = up.path || '';
-        } catch(_){ imgValue = fotoData; }
-        finally {
-          btn.disabled = false;
-          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Salvar na aba Catalisador';
-        }
+        imgValue = fotoData;
+        precisaUpload = true;
       } else {
         imgValue = fotoData;
       }
     }
+
+    /* Captura o base64 ANTES de limparCampos() */
+    const fotoB64 = fotoData;
 
     const novo = {
       ref:    String(refFinal),
@@ -4145,6 +4174,25 @@ document.getElementById('btnCota').addEventListener('click', () => {
     );
 
     limparCampos();
+
+    /* Upload em background — não bloqueia a UI */
+    if (precisaUpload) {
+      const b64 = fotoB64;
+      const refStr = String(refFinal);
+      window.__fbUploadImage(b64, 'catalisadores').then(function(up){
+        if (!up || !up.ok) return;
+        for (let i = 0; i < DATA.length; i++) {
+          if (String(DATA[i].ref) === refStr && DATA[i].img === b64) {
+            DATA[i].img = up.url;
+            DATA[i].storagePath = up.path || '';
+            try { localStorage.setItem('paizao_catalisadores', JSON.stringify(DATA)); } catch(e){}
+            try { render(); } catch(_){}
+            try { renderPesq(); } catch(_){}
+            break;
+          }
+        }
+      }).catch(function(e){ console.warn('[FB] foto upload bg:', e && e.message); });
+    }
   }
   $('novoSalvarBtn').addEventListener('click', salvarNovo);
 
