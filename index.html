@@ -687,6 +687,31 @@
   #view-carrinho .cart-total-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
   #view-carrinho .cart-total-box .label { font-size: 14px; font-weight: 600; color: var(--txt-2); }
   #view-carrinho .cart-total-box .value { font-size: 22px; font-weight: 800; color: #15803d; font-variant-numeric: tabular-nums; }
+  /* ====== NOVO: visualização de imagem em tela cheia ====== */
+  .img-fullscreen-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(12, 24, 38, 0.95);
+    backdrop-filter: blur(4px);
+    z-index: 20000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    cursor: zoom-out;
+    animation: fade .2s ease;
+  }
+  .img-fullscreen-overlay.open {
+    display: flex;
+  }
+  .img-fullscreen-overlay img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 24px 70px rgba(0,0,0,0.5);
+  }
+  /* ====================================================== */
 </style>
 </head>
 <body>
@@ -1343,6 +1368,9 @@
 
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
 <div class="scrim" id="scrim"></div>
+<div class="img-fullscreen-overlay" id="imgFullscreenOverlay">
+  <img id="imgFullscreenImg" src="" alt="Visualização da peça">
+</div>
 <aside class="drawer" id="drawer">
   <div class="drawer-head"><h3>Parâmetros de Cálculo</h3><button id="drawerClose">&times;</button></div>
   <div class="drawer-body">
@@ -1678,7 +1706,7 @@ document.getElementById('overlay').addEventListener('click', e => {
   if(e.target.id === 'overlay') closeModal();
 });
 document.addEventListener('keydown', e => {
-  if(e.key === 'Escape'){ closeModal(); closeDrawer(); }
+  if(e.key === 'Escape'){ closeModal(); closeDrawer(); closeFullscreenImage(); }
 });
 
 function openEditModal(item){
@@ -1726,9 +1754,7 @@ function openEditModal(item){
         <button type="button" class="btn primary" id="edSave" onclick="saveEdit(window.__editingOrig)">Salvar alterações</button>
       </div>
     </div>`;
-  /* ====== NOVO: abre o modal em tela cheia ====== */
   document.getElementById('modal').classList.add('fullscreen');
-  /* ============================================== */
   document.getElementById('overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
   const first = document.getElementById('edRef');
@@ -1747,7 +1773,6 @@ function saveEdit(original){
   const antigo = DATA[idx];
   const novoImg = v('edImg');
 
-  /* Se a imagem foi trocada e a antiga estava no Storage, remove a antiga */
   if (antigo && antigo.storagePath && antigo.img !== novoImg && window.__fbDeleteImage){
     try { window.__fbDeleteImage(antigo.storagePath); } catch(_){}
   }
@@ -1994,6 +2019,22 @@ function renderPesqPagination(total, page, totalPages){
   }));
 }
 
+function openFullscreenImage(src) {
+  const overlay = document.getElementById('imgFullscreenOverlay');
+  const img = document.getElementById('imgFullscreenImg');
+  if (!overlay || !img) return;
+  img.src = src;
+  overlay.classList.add('open');
+}
+function closeFullscreenImage() {
+  const overlay = document.getElementById('imgFullscreenOverlay');
+  const img = document.getElementById('imgFullscreenImg');
+  if (!overlay || !img) return;
+  overlay.classList.remove('open');
+  img.src = '';
+}
+document.getElementById('imgFullscreenOverlay')?.addEventListener('click', closeFullscreenImage);
+
 function renderPesq(){
   const all = pesqFiltered();
   const perPage = pesqState.perPage;
@@ -2014,6 +2055,17 @@ function renderPesq(){
     results.querySelectorAll('.pesq-card').forEach(card => {
       card.addEventListener('click', (e) => {
         if (e.target.closest('.cart')) return;
+
+        // NOVO: Abrir imagem em tela cheia
+        const imgWrapper = e.target.closest('.img');
+        if (imgWrapper) {
+          const imgEl = imgWrapper.querySelector('img');
+          if (imgEl) {
+            openFullscreenImage(imgEl.src);
+            return;
+          }
+        }
+
         const item = all.find(x => x.ref === card.dataset.ref);
         if(item) openModal(item);
       });
