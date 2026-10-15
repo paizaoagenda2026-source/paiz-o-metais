@@ -1467,14 +1467,38 @@ const esc = s => String(s ?? '')
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
   .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
-/* imgSrc ATUALIZADO: reconhece URLs (Storage/Drive) além de IDs do Drive */
+/* =========================================================
+   imgSrc ATUALIZADO: reconhece URLs do Google Drive
+   (com ou sem protocolo) além de IDs puros e outras URLs.
+   Ex.: drive.google.com/uc?export=view&id=1WYGzZ2OppfhTIruXqF6j9Qsckdb633z-
+        https://drive.google.com/file/d/XXXX/view
+        https://docs.google.com/uc?id=XXXX
+   ========================================================= */
+function extractDriveIdFromString(str){
+  if(!str || typeof str !== 'string') return '';
+  const s = str.trim();
+  const m = s.match(/[?&]id=([A-Za-z0-9_-]+)/) || s.match(/\/d\/([A-Za-z0-9_-]+)/);
+  return m ? m[1] : '';
+}
+
 function imgSrc(img, size){
   if(!img) return '';
   if(typeof img !== 'string') return '';
-  if(img.startsWith('data:')) return img;
-  if(/^https?:\/\//i.test(img)) return img;
-  return `https://drive.google.com/thumbnail?id=${img}&sz=${size || 'w300'}`;
+  const s = img.trim();
+  if(!s) return '';
+  if(s.startsWith('data:')) return s;
+
+  /* Google Drive URL (com ou sem protocolo) */
+  if(/drive\.google\.com|docs\.google\.com/i.test(s)){
+    const id = extractDriveIdFromString(s);
+    if(id) return `https://drive.google.com/thumbnail?id=${id}&sz=${size || 'w300'}`;
+  }
+  /* Outra URL http(s) comum */
+  if(/^https?:\/\//i.test(s)) return s;
+  /* Assume que é apenas o ID do Drive */
+  return `https://drive.google.com/thumbnail?id=${s}&sz=${size || 'w300'}`;
 }
+
 function thumbHTML(img, size){
   if(!img) return `<div class="thumb" style="${size?`width:${size}px;height:${size}px`:''}"></div>`;
   const url = imgSrc(img, 'w300');
