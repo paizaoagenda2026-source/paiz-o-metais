@@ -33,6 +33,23 @@
     'paizao_pedido_counter','paizao_auditoria','paizao_catalisador_cfg',
     'paizao_catalisadores','paizao_compra_venda_po'
   ];
+
+  /* =========================================================
+     MAPA DE ESPELHAMENTO — cada chave do storage é replicada
+     em uma coleção "visível" no Firestore, com um documento
+     por item. Assim, tudo que você cadastra aparece no console
+     do Firebase, organizado e legível.
+     ========================================================= */
+  var MIRROR_MAP = {
+    'paizao_catalisadores'  : 'produtos_visivel',
+    'paizao_clientes'       : 'clientes_visivel',
+    'paizao_usuarios'       : 'usuarios_visivel',
+    'paizao_carrinho'       : 'carrinho_visivel',
+    'paizao_pedidos'        : 'pedidos_visivel',
+    'paizao_compra_venda_po': 'compra_venda_po_visivel',
+    'paizao_auditoria'      : 'auditoria_visivel'
+  };
+
   if (typeof firebase === 'undefined' || !firebase.initializeApp){
     console.warn('[FB] SDK indisponível. App em modo local.'); return;
   }
@@ -52,6 +69,121 @@
     var prev = keyLocks[key] || Promise.resolve();
     var next = prev.catch(function(){}).then(fn);
     keyLocks[key] = next; return next;
+  }
+
+  /* ---------- Sanitiza um item antes de espelhar ---------- */
+  function sanitizeItem(item){
+    if (item === null || item === undefined) return item;
+    if (typeof item !== 'object') return item;
+    if (Array.isArray(item)){
+      var arr = [];
+      for (var a = 0; a < item.length; a++) arr.push(sanitizeItem(item[a]));
+      return arr;
+    }
+    var out = {};
+    for (var k in item){
+      if (!Object.prototype.hasOwnProperty.call(item, k)) continue;
+      var v = item[k];
+      if (typeof v === 'string' && v.length > 9000){
+        /* Substitui strings gigantes (base64 de imagens) por marcador
+           para respeitar o limite de 1 MB por documento do Firestore */
+        out[k] = '[texto/imagem longo — ' + v.length + ' caracteres]';
+        out[k + '_truncado'] = true;
+      } else if (v && typeof v === 'object'){
+        out[k] = sanitizeItem(v);
+      } else {
+        out[k] = v;
+      }
+    }
+    return out;
+  }
+
+  /* ---------- Espelha uma coleção inteira no Firestore ---------- */
+  async function mirrorCollection(key, rawValue){
+    var mirrorName = MIRROR_MAP[key];
+    if (!mirrorName) return;
+    if (typeof rawValue !== 'string' || !rawValue) return;
+
+    var parsed;
+    try { parsed = JSON.parse(rawValue); }
+    catch(e){ return; }
+    if (parsed === null || parsed === undefined) return;
+
+    var col = db.collection(mirrorName);
+
+    /* Monta lista de itens (array ou objeto) */
+    var items = [];
+    if (Array.isArray(parsed)){
+      items = parsed;
+    } else if (typeof parsed === 'object'){
+      var keys = Object.keys(parsed);
+      for (var i = 0; i < keys.length; i++){
+        var kk = keys[i];
+        var vv = parsed[kk];
+        var obj = (vv && typeof vv === 'object' && !Array.isArray(vv))
+          ? Object.assign({}, vv)
+          : { _valor: vv };
+        obj._chaveOriginal = kk;
+        items.push(obj);
+      }
+    } else {
+      return;
+    }
+
+    var newCount = items.length;
+
+    /* Lê os documentos atuais para saber quantos remover */
+    var existing;
+    try { existing = await col.get(); }
+    catch(e){ console.warn('[FB] mirror read(' + mirrorName + '):', e.message); return; }
+
+    var oldCount = existing.size;
+
+    /* Monta operações (set para cada item, delete para excedentes) */
+    var ops = [];
+    for (var idx = 0; idx < newCount; idx++){
+      var docId = 'item_' + String(idx).padStart(6, '0');
+      var data = sanitizeItem(items[idx]) || {};
+      data._indice   = idx;
+      data._origem   = key;
+      data._syncedAt = firebase.firestore.FieldValue.serverTimestamp();
+      ops.push({ tipo: 'set', id: docId, data: data });
+    }
+    /* Delega a limpeza de excedentes para um campo determinístico:
+       como usamos IDs sequenciais, qualquer doc com índice >= newCount
+       precisa ser removido. Como existing.size pode não corresponder
+       exatamente ao número de IDs sequenciais (por versões antigas),
+       varremos pelos docs lidos. */
+    existing.forEach(function(doc){
+      var m = /^item_(\d+)$/.exec(doc.id);
+      if (!m) { ops.push({ tipo: 'delete', ref: doc.ref }); return; }
+      var n = parseInt(m[1], 10);
+      if (!isFinite(n) || n >= newCount){
+        ops.push({ tipo: 'delete', ref: doc.ref });
+      }
+    });
+    /* Também garante remoção por índice sequencial faltante */
+    for (var j = newCount; j < oldCount; j++){
+      var did = 'item_' + String(j).padStart(6, '0');
+      ops.push({ tipo: 'delete', id: did });
+    }
+
+    if (!ops.length) return;
+
+    /* Executa em lotes de 450 (limite seguro do batch é 500) */
+    var BATCH_LIMIT = 450;
+    for (var oi = 0; oi < ops.length; oi += BATCH_LIMIT){
+      var batch = db.batch();
+      var slice = ops.slice(oi, oi + BATCH_LIMIT);
+      for (var si = 0; si < slice.length; si++){
+        var op = slice[si];
+        if (op.tipo === 'set') batch.set(col.doc(op.id), op.data);
+        else if (op.ref) batch.delete(op.ref);
+        else if (op.id)  batch.delete(col.doc(op.id));
+      }
+      try { await batch.commit(); }
+      catch(e){ console.warn('[FB] mirror commit(' + mirrorName + '):', e.message); break; }
+    }
   }
 
   async function saveKey(key, value){
@@ -94,6 +226,11 @@
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
           });
           chunkCountCache[key] = total;
+        }
+        /* Espelha a coleção "visível" no Firestore (1 doc por item) */
+        if (MIRROR_MAP[key]){
+          try { await mirrorCollection(key, value); }
+          catch(e){ console.warn('[FB] mirror(' + key + '):', e.message); }
         }
       } catch(e){
         delete chunkCountCache[key];
@@ -237,6 +374,20 @@
         try { lv = window.localStorage.getItem(sk); } catch(_){}
         if (lv !== null) await saveKey(sk, lv).catch(function(){});
       }
+
+      /* Garante que TODAS as coleções espelho existam, mesmo para
+         dados já existentes no Firestore antes desta versão. */
+      for (var m = 0; m < SYNC_KEYS.length; m++){
+        var mk = SYNC_KEYS[m];
+        if (!MIRROR_MAP[mk]) continue;
+        var mv = null;
+        try { mv = window.localStorage.getItem(mk); } catch(_){}
+        if (mv) {
+          try { await mirrorCollection(mk, mv); }
+          catch(e){ console.warn('[FB] boot mirror(' + mk + '):', e.message); }
+        }
+      }
+
       isSyncing = false;
       try { sessionStorage.setItem(BOOT_FLAG, '1'); } catch(_){}
       if (needsReload) location.reload();
@@ -2905,15 +3056,9 @@ document.getElementById('btnCota').addEventListener('click', () => {
     right: 'olhe para a DIREITA ➡️'
   };
 
-  /* ==============================================================
-     CORREÇÃO: FaceMesh é criado UMA ÚNICA VEZ e reutilizado entre
-     sessões. O módulo WASM do MediaPipe não se comporta bem ao ser
-     fechado (close) e recriado na mesma página — o que fazia o
-     reconhecimento falhar após logout/login.
-     ============================================================== */
-  let faceMesh = null;          // instância persistente (criada uma única vez)
-  let camera = null;            // Camera do MediaPipe (recriada por sessão)
-  let stream = null;            // stream do getUserMedia
+  let faceMesh = null;
+  let camera = null;
+  let stream = null;
   let faceRunning = false;
   let baseline = null;
   let baselineSamples = [];
@@ -3084,14 +3229,12 @@ document.getElementById('btnCota').addEventListener('click', () => {
     faceOverlay.classList.add('open');
     resetFaceState();
 
-    /* Limpeza preventiva: libera qualquer câmera/stream de sessão anterior */
     faceRunning = false;
     if (camera){ try { await camera.stop(); } catch(_){} camera = null; }
     if (stream){ try { stream.getTracks().forEach(t => t.stop()); } catch(_){} stream = null; }
     try { faceVideo.pause(); } catch(_){}
     try { faceVideo.srcObject = null; } catch(_){}
 
-    /* Pequeno delay para o navegador liberar o device de câmera */
     await new Promise(r => setTimeout(r, 300));
 
     try{
@@ -3103,7 +3246,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }
 
     try{
-      /* FaceMesh persistente (criado uma única vez) */
       await ensureFaceMesh();
 
       faceStatus.textContent = 'Solicitando acesso à câmera...';
@@ -3139,7 +3281,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     try { faceVideo.pause(); } catch(_){}
     try { faceVideo.srcObject = null; } catch(_){}
     faceOverlay.classList.remove('open');
-    /* NÃO fechamos o faceMesh aqui — ele é reutilizado na próxima sessão */
   }
 
   faceBtn.addEventListener('click', startFaceRecognition);
@@ -3373,7 +3514,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       return;
     }
 
-    /* Selfie: salva IMEDIATAMENTE em base64; upload ao Storage roda em background */
     let selfieFinal = selfieData || '';
     let selfiePath = '';
     const anterior = (editIndex >= 0) ? clientes[editIndex] : null;
@@ -3382,7 +3522,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       selfiePath = anterior.selfieStoragePath || '';
     } else if (selfieFinal && selfieFinal.indexOf('data:') === 0 && window.__fbUploadImage) {
       precisaUpload = true;
-      /* mantém base64 localmente; upload será disparado após salvar */
     }
 
     const dados = {
@@ -3451,12 +3590,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
     renderCadastro();
     clearFields();
 
-    /* Upload em background — não bloqueia a UI */
     if (precisaUpload) {
       const b64 = selfieFinal;
       window.__fbUploadImage(b64, 'selfies_clientes').then(function(up){
         if (!up || !up.ok) return;
-        /* Atualiza cliente(s) que ainda têm o base64 */
         let changed = false;
         for (let i = 0; i < clientes.length; i++) {
           if (clientes[i].selfie === b64) {
@@ -3469,7 +3606,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
           saveClientes();
           try { renderCadastro(); } catch(_){}
         }
-        /* Atualiza usuário criado automaticamente (mesmo base64) */
         const USERS = window.USERS || {};
         let usersChanged = false;
         for (const k in USERS) {
@@ -3483,7 +3619,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
           if (typeof window.saveUsers === 'function') { try { window.saveUsers(); } catch(_){} }
           if (typeof window.renderUsuarios === 'function') { try { window.renderUsuarios(); } catch(_){} }
         }
-        /* Remove selfie antiga do Storage */
         if (anterior && anterior.selfieStoragePath && anterior.selfieStoragePath !== up.path){
           if (window.__fbDeleteImage) { try { window.__fbDeleteImage(anterior.selfieStoragePath); } catch(_){} }
         }
@@ -3770,12 +3905,11 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     const existing = USERS[finalUser] || {};
 
-    /* Selfie: salva IMEDIATAMENTE em base64; upload em background */
     let selfieFinal = selfieData || '';
     let selfiePath = existing.selfieStoragePath || '';
     let precisaUpload = false;
     if (existing.selfie === selfieFinal) {
-      /* nada mudou — mantém path */
+      /* nada mudou */
     } else if (selfieFinal && selfieFinal.indexOf('data:') === 0 && window.__fbUploadImage) {
       precisaUpload = true;
     } else if (!selfieFinal) {
@@ -3799,7 +3933,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     alert('Usuário salvo com sucesso!\n\nLogin: ' + finalUser + '\nSenha: ' + pass);
     clearFields();
 
-    /* Upload em background */
     if (precisaUpload) {
       const b64 = selfieFinal;
       const userKey = finalUser;
@@ -3812,7 +3945,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
           if (window.saveUsers) { try { window.saveUsers(); } catch(_){} }
           try { render(); } catch(_){}
         }
-        /* Remove selfie antiga do Storage */
         if (existing.selfieStoragePath && existing.selfieStoragePath !== up.path){
           if (window.__fbDeleteImage) { try { window.__fbDeleteImage(existing.selfieStoragePath); } catch(_){} }
         }
@@ -4132,7 +4264,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     const codigos = novoCod.value.split(';').map(s => s.trim()).filter(Boolean);
 
-    /* Foto: salva IMEDIATAMENTE em base64; upload em background */
     let imgValue = novoImg.value.trim();
     let storagePath = '';
     let precisaUpload = false;
@@ -4147,7 +4278,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       }
     }
 
-    /* Captura o base64 ANTES de limparCampos() */
     const fotoB64 = fotoData;
 
     const novo = {
@@ -4199,7 +4329,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     limparCampos();
 
-    /* Upload em background — não bloqueia a UI */
     if (precisaUpload) {
       const b64 = fotoB64;
       const refStr = String(refFinal);
@@ -4375,7 +4504,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     updateRsState();
   }
 
-  /* ===== NOVO: ATUALIZA OS DASHBOARDS (R$ Compra / R$ Venda / R$ Lucro) ===== */
   function updateDashboards(){
     let totalCompra = 0, countCompra = 0;
     let totalVenda  = 0, countVenda  = 0;
@@ -4402,7 +4530,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if (elLucroC)  elLucroC.textContent  = 'Venda (' + countVenda + ') − Compra (' + countCompra + ')';
     if (elLucroCard) elLucroCard.classList.toggle('neg', lucro < 0);
   }
-  /* ========================================================================= */
 
   function render(){
     cvCount.textContent = registros.length + ' registro' + (registros.length === 1 ? '' : 's');
@@ -4471,7 +4598,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     const margin = 18;
     const usableW = pageW - margin * 2;
 
-    // Header
     doc.setFillColor(15, 35, 56);
     doc.rect(0, 0, pageW, 26, 'F');
     doc.setTextColor(255, 255, 255);
@@ -4482,7 +4608,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     doc.setFontSize(10);
     doc.text('Compra / Venda de Pó — Comprovante', margin, 21);
 
-    // Tipo destacado
     const isVenda = r.tipo === 'VENDA';
     const tipoLabel = isVenda ? 'VENDA' : 'COMPRA';
     doc.setFillColor(isVenda ? 209 : 219, isVenda ? 250 : 234, isVenda ? 229 : 254);
@@ -4494,7 +4619,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     let y = 60;
 
-    // Nome / Fone
     doc.setTextColor(15, 35, 56);
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
@@ -4514,7 +4638,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     doc.setFont('helvetica', 'normal');
     doc.text(fmtDateBR(r.data), margin + 18, y);
 
-    // Tabela
     y += 12;
     const rowH = 9;
     doc.setFillColor(15, 35, 56);
@@ -4539,7 +4662,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     doc.text(fmtNum(r.rh, 3), margin + colW * 3 + 4, y + 6);
     y += rowH + 14;
 
-    // Valor total
     doc.setFillColor(240, 253, 244);
     doc.setDrawColor(187, 247, 208);
     doc.roundedRect(margin, y, usableW, 22, 3, 3, 'FD');
@@ -4559,7 +4681,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       : 'Valor digitado manualmente pelo operador (compra).';
     doc.text(obs, margin, y);
 
-    // Rodapé
     doc.setDrawColor(200, 210, 220);
     doc.line(margin, pageH - 40, pageW - margin, pageH - 40);
     doc.setFont('helvetica', 'normal');
@@ -4620,7 +4741,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     render();
     clearFields();
 
-    // Gera o PDF automaticamente ao salvar
     setTimeout(() => {
       try { openCvPDF(savedIdx); } catch(_){}
     }, 120);
@@ -4644,7 +4764,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     cvCancelarBtn.classList.remove('hidden');
     cvFormSub.textContent = 'Editando registro #' + (i + 1);
     updateRsState();
-    // Reaplica valor manual em compra caso o usuário tenha salvo assim
     if (cvTipo.value === 'COMPRA') cvRs.value = r.rs;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -4667,7 +4786,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
   cvLimparBtn.addEventListener('click', clearFields);
   cvCancelarBtn.addEventListener('click', clearFields);
 
-  // Expor atualização para os parâmetros
   window.updateCvTab = function(){
     if (cvTipo.value === 'VENDA') updateRsState();
     render();
