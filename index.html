@@ -31,7 +31,7 @@
   var SYNC_KEYS = [
     'paizao_usuarios','paizao_clientes','paizao_carrinho','paizao_pedidos',
     'paizao_pedido_counter','paizao_auditoria','paizao_catalisador_cfg',
-    'paizao_catalisadores'
+    'paizao_catalisadores','paizao_compra_venda_po'
   ];
   if (typeof firebase === 'undefined' || !firebase.initializeApp){
     console.warn('[FB] SDK indisponível. App em modo local.'); return;
@@ -712,6 +712,23 @@
     box-shadow: 0 24px 70px rgba(0,0,0,0.5);
   }
   /* ====================================================== */
+  /* ====== NOVO: ABA COMPRA/VENDA PÓ ====== */
+  #view-compravendapo .form-body{padding:18px}
+  #view-compravendapo .form-body .field{margin-bottom:14px}
+  #view-compravendapo .grid-cv{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+  #view-compravendapo .grid-cv-top{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:6px}
+  @media(max-width:900px){#view-compravendapo .grid-cv{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){#view-compravendapo .grid-cv,#view-compravendapo .grid-cv-top{grid-template-columns:1fr}}
+  #view-compravendapo .form-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  #view-compravendapo td.cv-money{font-weight:700;color:#15803d;font-variant-numeric:tabular-nums;text-align:right}
+  #view-compravendapo td.cv-num{text-align:right;font-variant-numeric:tabular-nums}
+  #view-compravendapo td.cv-actions{text-align:center;white-space:nowrap}
+  #view-compravendapo td.cv-actions .row-edit{margin:0 2px}
+  #view-compravendapo .cv-badge{display:inline-block;font-size:10.5px;font-weight:800;
+    letter-spacing:.4px;padding:3px 10px;border-radius:20px;text-transform:uppercase}
+  #view-compravendapo .cv-badge.COMPRA{background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe}
+  #view-compravendapo .cv-badge.VENDA{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
+  /* ====================================== */
 </style>
 </head>
 <body>
@@ -869,6 +886,7 @@
   <button class="tab" data-tab="catalisador">Catalisador <span class="badge" id="tabCount">0</span></button>
   <button class="tab" data-tab="novo">Novo</button>
   <button class="tab" data-tab="po">Pó</button>
+  <button class="tab" data-tab="compravendapo">Compra/Venda Pó</button>
   <button class="tab active" data-tab="pesquisa">Pesquisa</button>
   <button class="tab" data-tab="cadastro">Cadastro</button>
   <button class="tab" data-tab="cotacoes">Cotações &amp; Parâmetros</button>
@@ -1027,6 +1045,92 @@
     </div>
   </section>
 </main>
+
+<!-- ====== NOVO: ABA COMPRA/VENDA PÓ ====== -->
+<main class="wrap hidden" id="view-compravendapo">
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Compra / Venda de Pó</h2>
+      <span class="sub" id="cvFormSub">Cadastre uma compra ou venda de pó</span>
+    </div>
+    <div class="form-body">
+      <div class="grid-cv-top">
+        <div class="field">
+          <label for="cvNome">Nome</label>
+          <input type="text" id="cvNome" placeholder="Nome do cliente / fornecedor" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="cvFone">Fone</label>
+          <input type="text" id="cvFone" placeholder="Ex.: (11) 99999-9999" autocomplete="off">
+        </div>
+      </div>
+      <div class="grid-cv-top">
+        <div class="field">
+          <label for="cvTipo">Tipo de operação</label>
+          <select id="cvTipo">
+            <option value="COMPRA">COMPRA (R$ editável)</option>
+            <option value="VENDA">VENDA (R$ calculado automaticamente)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="cvData">Data</label>
+          <input type="date" id="cvData">
+        </div>
+      </div>
+      <div class="grid-cv">
+        <div class="field"><label for="cvPeso">Peso (kg)</label><input type="number" step="0.001" min="0" id="cvPeso" value="0"></div>
+        <div class="field"><label for="cvPd">Teor Pd (g/kg)</label><input type="number" step="0.001" min="0" id="cvPd" value="0"></div>
+        <div class="field"><label for="cvPt">Teor Pt (g/kg)</label><input type="number" step="0.001" min="0" id="cvPt" value="0"></div>
+        <div class="field"><label for="cvRh">Teor Rh (g/kg)</label><input type="number" step="0.001" min="0" id="cvRh" value="0"></div>
+        <div class="field"><label for="cvRs">R$</label><input type="number" step="0.01" min="0" id="cvRs" value="0"></div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn primary" id="cvSalvarBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Salvar
+        </button>
+        <button type="button" class="btn" id="cvLimparBtn">Limpar campos</button>
+        <button type="button" class="btn hidden" id="cvCancelarBtn">Cancelar edição</button>
+      </div>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Registros Salvos</h2>
+      <span class="sub" id="cvCount">0 registros</span>
+    </div>
+    <div class="table-scroll">
+      <table style="min-width:1000px">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th style="width:140px">Fone</th>
+            <th style="width:110px">Tipo</th>
+            <th style="width:120px">Data</th>
+            <th style="width:110px;text-align:right">Peso (kg)</th>
+            <th style="width:100px;text-align:right">Pd</th>
+            <th style="width:100px;text-align:right">Pt</th>
+            <th style="width:100px;text-align:right">Rh</th>
+            <th style="width:140px;text-align:right">R$</th>
+            <th style="width:180px;text-align:center">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="cvTbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hidden" id="cvEmpty">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11H5a2 2 0 0 0-2 2v7h6v-9z"/><path d="M15 7H9v13h6V7z"/><path d="M21 3h-6v17h6V3z"/></svg>
+      <h3>Nenhum registro de compra/venda de pó</h3>
+      <p>Preencha o formulário acima e clique em Salvar.</p>
+    </div>
+    <div class="footnote">
+      <b>COMPRA:</b> todos os campos são editáveis (R$ digitado manualmente).<br>
+      <b>VENDA:</b> informe peso e teores (Pd/Pt/Rh) — o R$ é calculado automaticamente pela mesma regra da aba <b>Pó</b>.
+      Cada registro salvo possui um botão <b>📄 PDF</b> na coluna "Ações".
+    </div>
+  </section>
+</main>
+<!-- ========================================= -->
 
 <main class="wrap" id="view-pesquisa">
   <div class="pesq-container">
@@ -1189,6 +1293,7 @@
           <label><input type="checkbox" data-perm="catalisador" checked> Catalisador</label>
           <label><input type="checkbox" data-perm="novo"> Novo</label>
           <label><input type="checkbox" data-perm="po"> Pó</label>
+          <label><input type="checkbox" data-perm="compravendapo"> Compra/Venda Pó</label>
           <label><input type="checkbox" data-perm="pesquisa" checked> Pesquisa</label>
           <label><input type="checkbox" data-perm="cadastro"> Cadastro</label>
           <label><input type="checkbox" data-perm="cotacoes"> Cotações</label>
@@ -1851,6 +1956,7 @@ document.getElementById('cfgApply').addEventListener('click', () => {
   if (window.auditLog) window.auditLog('PARAMETROS_ALTERADOS', 'Aplicou novos parâmetros de cálculo');
   render(); renderCotacoes(); renderPesq(); closeDrawer();
   if (window.updatePoTab) window.updatePoTab();
+  if (window.updateCvTab) window.updateCvTab();
 });
 document.getElementById('cfgReset').addEventListener('click', () => {
   CFG = { ...DEFAULT_CFG };
@@ -1858,6 +1964,7 @@ document.getElementById('cfgReset').addEventListener('click', () => {
   if (window.auditLog) window.auditLog('PARAMETROS_RESTAURADOS', 'Restaurou parâmetros padrão');
   fillDrawer(); render(); renderCotacoes(); renderPesq();
   if (window.updatePoTab) window.updatePoTab();
+  if (window.updateCvTab) window.updateCvTab();
 });
 
 function renderCotacoes(){
@@ -1903,6 +2010,8 @@ document.querySelectorAll('.tab').forEach(btn => {
     if(vnovo) vnovo.classList.toggle('hidden', t !== 'novo');
     const vpo = document.getElementById('view-po');
     if(vpo) vpo.classList.toggle('hidden', t !== 'po');
+    const vcv = document.getElementById('view-compravendapo');
+    if(vcv) vcv.classList.toggle('hidden', t !== 'compravendapo');
     const vusr = document.getElementById('view-usuarios');
     if(vusr) vusr.classList.toggle('hidden', t !== 'usuarios');
     const vaud = document.getElementById('view-auditoria');
@@ -2240,6 +2349,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if (window.auditLog) window.auditLog('COTACAO_MANUAL', 'Pd ' + pd + ', Pt ' + pt + ', Rh ' + rh + ', Dólar ' + dolar);
     render(); renderCotacoes(); renderPesq();
     if (window.updatePoTab) window.updatePoTab();
+    if (window.updateCvTab) window.updateCvTab();
   } else alert('Valores inválidos. Use números separados por vírgula.');
 });
 
@@ -2257,7 +2367,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
   'use strict';
 
   const LS_KEY_USERS = 'paizao_usuarios';
-  const ALL_TABS = ['catalisador','novo','po','pesquisa','cadastro','cotacoes','usuarios','auditoria','carrinho'];
+  const ALL_TABS = ['catalisador','novo','po','compravendapo','pesquisa','cadastro','cotacoes','usuarios','auditoria','carrinho'];
 
   const DEFAULT_SERGIO = {
     pass: '080888', role: 'admin', type: 'ADM', label: 'Administrador',
@@ -2295,6 +2405,9 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }
     if(u.type === 'ADM' && Array.isArray(u.permissions) && !u.permissions.includes('po')){
       u.permissions.push('po');
+    }
+    if(u.type === 'ADM' && Array.isArray(u.permissions) && !u.permissions.includes('compravendapo')){
+      u.permissions.push('compravendapo');
     }
     if(!u.label) u.label = u.type;
     if(!('selfie' in u)) u.selfie = '';
@@ -3418,7 +3531,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
   usrTipo.addEventListener('change', () => {
     const t = usrTipo.value;
     const defaults = {
-      ADM: ['catalisador','novo','po','pesquisa','cadastro','cotacoes','usuarios','auditoria','carrinho'],
+      ADM: ['catalisador','novo','po','compravendapo','pesquisa','cadastro','cotacoes','usuarios','auditoria','carrinho'],
       COMPRADOR: ['pesquisa', 'po', 'carrinho'],
       AGREGADO: ['pesquisa', 'po', 'carrinho'],
       CLIENTE: ['pesquisa', 'po', 'carrinho'],
@@ -3827,6 +3940,384 @@ document.getElementById('btnCota').addEventListener('click', () => {
 </script>
 
 <script>
+/* =========================================================
+   ABA COMPRA/VENDA PÓ
+   ========================================================= */
+(function compraVendaPoSystem(){
+  'use strict';
+
+  const LS_KEY_CV = 'paizao_compra_venda_po';
+  let registros = [];
+  try {
+    const saved = JSON.parse(localStorage.getItem(LS_KEY_CV) || '[]');
+    if (Array.isArray(saved)) registros = saved;
+  } catch(e){ registros = []; }
+
+  let editIndex = -1;
+
+  const $ = id => document.getElementById(id);
+
+  const cvNome        = $('cvNome');
+  const cvFone        = $('cvFone');
+  const cvTipo        = $('cvTipo');
+  const cvData        = $('cvData');
+  const cvPeso        = $('cvPeso');
+  const cvPd          = $('cvPd');
+  const cvPt          = $('cvPt');
+  const cvRh          = $('cvRh');
+  const cvRs          = $('cvRs');
+  const cvSalvarBtn   = $('cvSalvarBtn');
+  const cvLimparBtn   = $('cvLimparBtn');
+  const cvCancelarBtn = $('cvCancelarBtn');
+  const cvFormSub     = $('cvFormSub');
+  const cvTbody       = $('cvTbody');
+  const cvCount       = $('cvCount');
+  const cvEmpty       = $('cvEmpty');
+
+  function saveRegistros(){
+    try { localStorage.setItem(LS_KEY_CV, JSON.stringify(registros)); } catch(e){}
+  }
+
+  function escHtml(s){
+    return String(s ?? '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function fmtMoneyLocal(n){
+    return 'R$ ' + Number(n || 0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+  function fmtDateBR(iso){
+    if(!iso) return '—';
+    const parts = String(iso).split('-');
+    if(parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+    return iso;
+  }
+  function todayISO(){
+    const d = new Date();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
+
+  function calcVendaRs(){
+    const peso = parseFloat(cvPeso.value) || 0;
+    const pd   = parseFloat(cvPd.value)   || 0;
+    const pt   = parseFloat(cvPt.value)   || 0;
+    const rh   = parseFloat(cvRh.value)   || 0;
+    if (peso <= 0) return 0;
+    const rskg = calcRskgFromTeores(pd, pt, rh);
+    return rskg * peso;
+  }
+
+  function updateRsState(){
+    if (cvTipo.value === 'VENDA') {
+      cvRs.readOnly = true;
+      cvRs.classList.add('po-readonly');
+      const val = calcVendaRs();
+      cvRs.value = val.toFixed(2);
+    } else {
+      cvRs.readOnly = false;
+      cvRs.classList.remove('po-readonly');
+    }
+  }
+
+  [cvPeso, cvPd, cvPt, cvRh].forEach(el => {
+    if (el) el.addEventListener('input', () => {
+      if (cvTipo.value === 'VENDA') updateRsState();
+    });
+  });
+  cvTipo.addEventListener('change', updateRsState);
+
+  function clearFields(){
+    cvNome.value = '';
+    cvFone.value = '';
+    cvTipo.value = 'COMPRA';
+    cvData.value = todayISO();
+    cvPeso.value = '0';
+    cvPd.value = '0';
+    cvPt.value = '0';
+    cvRh.value = '0';
+    cvRs.value = '0';
+    editIndex = -1;
+    cvCancelarBtn.classList.add('hidden');
+    cvFormSub.textContent = 'Cadastre uma compra ou venda de pó';
+    updateRsState();
+  }
+
+  function render(){
+    cvCount.textContent = registros.length + ' registro' + (registros.length === 1 ? '' : 's');
+    if (!registros.length){
+      cvTbody.innerHTML = '';
+      cvEmpty.classList.remove('hidden');
+      return;
+    }
+    cvEmpty.classList.add('hidden');
+    let html = '';
+    registros.forEach((r, i) => {
+      const tipoClass = r.tipo === 'VENDA' ? 'VENDA' : 'COMPRA';
+      html += `<tr>
+        <td>${escHtml(r.nome || '—')}</td>
+        <td>${escHtml(r.fone || '—')}</td>
+        <td><span class="cv-badge ${tipoClass}">${escHtml(tipoClass)}</span></td>
+        <td>${escHtml(fmtDateBR(r.data))}</td>
+        <td class="cv-num">${fmtNum(r.peso, 3)} kg</td>
+        <td class="cv-num">${fmtNum(r.pd, 3)}</td>
+        <td class="cv-num">${fmtNum(r.pt, 3)}</td>
+        <td class="cv-num">${fmtNum(r.rh, 3)}</td>
+        <td class="cv-money">${fmtMoneyLocal(r.rs)}</td>
+        <td class="cv-actions">
+          <button class="row-edit" data-cv-pdf="${i}" title="Gerar PDF" aria-label="PDF">📄</button>
+          <button class="row-edit" data-cv-edit="${i}" title="Editar" aria-label="Editar">✎</button>
+          <button class="row-edit" data-cv-del="${i}" title="Excluir" aria-label="Excluir"
+            style="background:#fee2e2;color:#b91c1c;border-color:#fecaca">🗑</button>
+        </td>
+      </tr>`;
+    });
+    cvTbody.innerHTML = html;
+
+    cvTbody.querySelectorAll('[data-cv-pdf]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const i = parseInt(btn.dataset.cvPdf, 10);
+        openCvPDF(i);
+      });
+    });
+    cvTbody.querySelectorAll('[data-cv-edit]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        startEdit(parseInt(btn.dataset.cvEdit, 10));
+      });
+    });
+    cvTbody.querySelectorAll('[data-cv-del]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        excluir(parseInt(btn.dataset.cvDel, 10));
+      });
+    });
+  }
+
+  function openCvPDF(index){
+    const r = registros[index];
+    if (!r) { alert('Registro não encontrado.'); return; }
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      alert('Biblioteca de PDF não carregada.');
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 18;
+    const usableW = pageW - margin * 2;
+
+    // Header
+    doc.setFillColor(15, 35, 56);
+    doc.rect(0, 0, pageW, 26, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('PAIZÃO METAIS', margin, 14);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text('Compra / Venda de Pó — Comprovante', margin, 21);
+
+    // Tipo destacado
+    const isVenda = r.tipo === 'VENDA';
+    const tipoLabel = isVenda ? 'VENDA' : 'COMPRA';
+    doc.setFillColor(isVenda ? 209 : 219, isVenda ? 250 : 234, isVenda ? 229 : 254);
+    doc.roundedRect(margin, 36, usableW, 14, 2, 2, 'F');
+    doc.setTextColor(isVenda ? 6 : 30, isVenda ? 95 : 64, isVenda ? 70 : 175);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('TIPO DE OPERAÇÃO: ' + tipoLabel, margin + 4, 45.5);
+
+    let y = 60;
+
+    // Nome / Fone
+    doc.setTextColor(15, 35, 56);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Nome:', margin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(r.nome || '—'), margin + 18, y);
+
+    y += 7;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Fone:', margin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(r.fone || '—'), margin + 18, y);
+
+    y += 7;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Data:', margin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(fmtDateBR(r.data), margin + 18, y);
+
+    // Tabela
+    y += 12;
+    const rowH = 9;
+    doc.setFillColor(15, 35, 56);
+    doc.rect(margin, y, usableW, rowH, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    const colW = usableW / 4;
+    doc.text('Peso (kg)', margin + 4, y + 6);
+    doc.text('Pd (g/kg)', margin + colW + 4, y + 6);
+    doc.text('Pt (g/kg)', margin + colW * 2 + 4, y + 6);
+    doc.text('Rh (g/kg)', margin + colW * 3 + 4, y + 6);
+    y += rowH;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(22, 32, 44);
+    doc.setFontSize(11);
+    doc.rect(margin, y, usableW, rowH);
+    doc.text(fmtNum(r.peso, 3), margin + 4, y + 6);
+    doc.text(fmtNum(r.pd, 3), margin + colW + 4, y + 6);
+    doc.text(fmtNum(r.pt, 3), margin + colW * 2 + 4, y + 6);
+    doc.text(fmtNum(r.rh, 3), margin + colW * 3 + 4, y + 6);
+    y += rowH + 14;
+
+    // Valor total
+    doc.setFillColor(240, 253, 244);
+    doc.setDrawColor(187, 247, 208);
+    doc.roundedRect(margin, y, usableW, 22, 3, 3, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(21, 128, 61);
+    doc.text('VALOR TOTAL (R$):', margin + 4, y + 14);
+    doc.setFontSize(18);
+    doc.text(fmtMoneyLocal(r.rs), pageW - margin - 4, y + 15, { align: 'right' });
+
+    y += 34;
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(9);
+    doc.setTextColor(120, 130, 145);
+    const obs = isVenda
+      ? 'Valor calculado automaticamente conforme os parâmetros vigentes (Payability, cotações e custo operacional).'
+      : 'Valor digitado manualmente pelo operador (compra).';
+    doc.text(obs, margin, y);
+
+    // Rodapé
+    doc.setDrawColor(200, 210, 220);
+    doc.line(margin, pageH - 40, pageW - margin, pageH - 40);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(90, 106, 125);
+    doc.text('Assinatura: ________________________________', margin, pageH - 30);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(147, 162, 179);
+    doc.text(
+      'Paizão Metais · Sistema de Consulta Técnica · Documento gerado em ' +
+      new Date().toLocaleString('pt-BR'),
+      pageW / 2, pageH - 10, { align: 'center' }
+    );
+
+    const fname = 'paizao_' + tipoLabel.toLowerCase() + '_po_' +
+      String(r.data || '').replace(/\D/g,'') + '_' + (index+1) + '.pdf';
+    doc.save(fname);
+  }
+
+  function salvar(){
+    const nome = cvNome.value.trim();
+    const fone = cvFone.value.trim();
+    const tipo = cvTipo.value;
+    const data = cvData.value || todayISO();
+    const peso = parseFloat(cvPeso.value) || 0;
+    const pd   = parseFloat(cvPd.value)   || 0;
+    const pt   = parseFloat(cvPt.value)   || 0;
+    const rh   = parseFloat(cvRh.value)   || 0;
+    let rs     = parseFloat(cvRs.value)   || 0;
+
+    if (peso <= 0) { alert('Informe o peso (maior que zero).'); cvPeso.focus(); return; }
+
+    if (tipo === 'VENDA') {
+      rs = calcVendaRs();
+    }
+
+    const registro = { nome, fone, tipo, data, peso, pd, pt, rh, rs };
+
+    const isNovo = editIndex < 0;
+
+    if (!isNovo) {
+      registros[editIndex] = registro;
+    } else {
+      registros.push(registro);
+    }
+    saveRegistros();
+
+    if (window.auditLog) {
+      try {
+        window.auditLog(isNovo ? 'CV_PO_CRIADO' : 'CV_PO_EDITADO',
+          tipo + ' · ' + (nome || '—') + ' · Peso ' + fmtNum(peso,3) + ' kg · R$ ' + fmtNum(rs,2));
+      } catch(_){}
+    }
+
+    const savedIdx = isNovo ? (registros.length - 1) : editIndex;
+
+    render();
+    clearFields();
+
+    // Gera o PDF automaticamente ao salvar
+    setTimeout(() => {
+      try { openCvPDF(savedIdx); } catch(_){}
+    }, 120);
+
+    alert('Registro salvo com sucesso!\n\nTipo: ' + tipo + '\nNome: ' + (nome || '—') + '\nValor: ' + fmtMoneyLocal(rs));
+  }
+
+  function startEdit(i){
+    const r = registros[i];
+    if (!r) return;
+    editIndex = i;
+    cvNome.value = r.nome || '';
+    cvFone.value = r.fone || '';
+    cvTipo.value = r.tipo || 'COMPRA';
+    cvData.value = r.data || todayISO();
+    cvPeso.value = r.peso;
+    cvPd.value = r.pd;
+    cvPt.value = r.pt;
+    cvRh.value = r.rh;
+    cvRs.value = r.rs;
+    cvCancelarBtn.classList.remove('hidden');
+    cvFormSub.textContent = 'Editando registro #' + (i + 1);
+    updateRsState();
+    // Reaplica valor manual em compra caso o usuário tenha salvo assim
+    if (cvTipo.value === 'COMPRA') cvRs.value = r.rs;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function excluir(i){
+    const r = registros[i];
+    if (!r) return;
+    if (!confirm('Excluir este registro de ' + (r.tipo === 'VENDA' ? 'venda' : 'compra') + '?')) return;
+    registros.splice(i, 1);
+    saveRegistros();
+    if (window.auditLog) {
+      try { window.auditLog('CV_PO_EXCLUIDO', (r.tipo||'') + ' · ' + (r.nome||'—') + ' · R$ ' + fmtNum(r.rs,2)); } catch(_){}
+    }
+    if (editIndex === i) clearFields();
+    else if (editIndex > i) editIndex--;
+    render();
+  }
+
+  cvSalvarBtn.addEventListener('click', salvar);
+  cvLimparBtn.addEventListener('click', clearFields);
+  cvCancelarBtn.addEventListener('click', clearFields);
+
+  // Expor atualização para os parâmetros
+  window.updateCvTab = function(){
+    if (cvTipo.value === 'VENDA') updateRsState();
+    render();
+  };
+
+  clearFields();
+  render();
+})();
+</script>
+
+<script>
 (function auditoriaSystem(){
   'use strict';
 
@@ -3928,7 +4419,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if (a.includes('LOGIN')) return 'aud-login';
     if (a.includes('LOGOUT')) return 'aud-logout';
     if (a.includes('EXCLU') || a.includes('LIMPA')) return 'aud-exclui';
-    if (a.includes('CRIA') || a.includes('NOVO') || a.includes('LANCAMENTO_CRIADO')) return 'aud-cria';
+    if (a.includes('CRIA') || a.includes('NOVO') || a.includes('LANCAMENTO_CRIADO') || a.includes('CV_PO_CRIADO')) return 'aud-cria';
     if (a.includes('EDIT')) return 'aud-edit';
     if (a.includes('LIMPA')) return 'aud-limpa';
     return '';
