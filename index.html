@@ -2905,15 +2905,36 @@ document.getElementById('btnCota').addEventListener('click', () => {
     right: 'olhe para a DIREITA ➡️'
   };
 
-  let faceMesh = null;
-  let camera = null;
-  let stream = null;
+  /* ==============================================================
+     CORREÇÃO: FaceMesh é criado UMA ÚNICA VEZ e reutilizado entre
+     sessões. O módulo WASM do MediaPipe não se comporta bem ao ser
+     fechado (close) e recriado na mesma página — o que fazia o
+     reconhecimento falhar após logout/login.
+     ============================================================== */
+  let faceMesh = null;          // instância persistente (criada uma única vez)
+  let camera = null;            // Camera do MediaPipe (recriada por sessão)
+  let stream = null;            // stream do getUserMedia
   let faceRunning = false;
   let baseline = null;
   let baselineSamples = [];
   let currentIdx = 0;
   let waitingReturn = false;
   let lastMovementTime = 0;
+
+  async function ensureFaceMesh(){
+    if (faceMesh) return faceMesh;
+    faceMesh = new FaceMesh({
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
+    });
+    faceMesh.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: false,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+    faceMesh.onResults(onFaceResults);
+    return faceMesh;
+  }
 
   function resetFaceState(){
     const moves = ['right', 'left', 'up', 'down'];
@@ -3063,6 +3084,16 @@ document.getElementById('btnCota').addEventListener('click', () => {
     faceOverlay.classList.add('open');
     resetFaceState();
 
+    /* Limpeza preventiva: libera qualquer câmera/stream de sessão anterior */
+    faceRunning = false;
+    if (camera){ try { await camera.stop(); } catch(_){} camera = null; }
+    if (stream){ try { stream.getTracks().forEach(t => t.stop()); } catch(_){} stream = null; }
+    try { faceVideo.pause(); } catch(_){}
+    try { faceVideo.srcObject = null; } catch(_){}
+
+    /* Pequeno delay para o navegador liberar o device de câmera */
+    await new Promise(r => setTimeout(r, 300));
+
     try{
       faceStatus.textContent = 'Carregando módulos de IA...';
       await loadFaceScripts();
@@ -3072,6 +3103,9 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }
 
     try{
+      /* FaceMesh persistente (criado uma única vez) */
+      await ensureFaceMesh();
+
       faceStatus.textContent = 'Solicitando acesso à câmera...';
       stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480, facingMode: 'user' },
@@ -3079,17 +3113,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       });
       faceVideo.srcObject = stream;
       try { await faceVideo.play(); } catch(_){}
-
-      faceMesh = new FaceMesh({
-        locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
-      });
-      faceMesh.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: false,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
-      });
-      faceMesh.onResults(onFaceResults);
 
       camera = new Camera(faceVideo, {
         onFrame: async () => {
@@ -3109,13 +3132,14 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }
   }
 
-  function stopFaceRecognition(){
+  async function stopFaceRecognition(){
     faceRunning = false;
-    if(camera){ try { camera.stop(); } catch(_){} camera = null; }
+    if(camera){ try { await camera.stop(); } catch(_){} camera = null; }
     if(stream){ try { stream.getTracks().forEach(t => t.stop()); } catch(_){} stream = null; }
-    if(faceMesh){ try { faceMesh.close(); } catch(_){} faceMesh = null; }
+    try { faceVideo.pause(); } catch(_){}
     try { faceVideo.srcObject = null; } catch(_){}
     faceOverlay.classList.remove('open');
+    /* NÃO fechamos o faceMesh aqui — ele é reutilizado na próxima sessão */
   }
 
   faceBtn.addEventListener('click', startFaceRecognition);
