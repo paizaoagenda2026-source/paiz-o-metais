@@ -350,7 +350,6 @@
   .modal{background:#fff;border-radius:16px;width:min(880px,100%);max-height:90vh;overflow:auto;
     box-shadow:0 24px 70px rgba(8,20,35,.35);animation:pop .2s ease}
   @keyframes pop{from{transform:translateY(14px) scale(.98);opacity:0}to{transform:none;opacity:1}}
-  /* ====== NOVO: modal em tela cheia (usado na edição) ====== */
   .modal.fullscreen{
     width:100vw;
     max-width:100vw;
@@ -360,7 +359,6 @@
     animation:none;
   }
   .overlay:has(.modal.fullscreen){ padding:0; }
-  /* ========================================================= */
   .modal-head{display:flex;gap:18px;padding:22px;border-bottom:1px solid var(--line);
     background:linear-gradient(180deg,#fbfcfe,#fff);position:sticky;top:0;z-index:2}
   .modal-head .thumb{width:120px;height:120px;border-radius:12px;flex-shrink:0}
@@ -688,7 +686,6 @@
   #view-carrinho .cart-total-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
   #view-carrinho .cart-total-box .label { font-size: 14px; font-weight: 600; color: var(--txt-2); }
   #view-carrinho .cart-total-box .value { font-size: 22px; font-weight: 800; color: #15803d; font-variant-numeric: tabular-nums; }
-  /* ====== NOVO: visualização de imagem em tela cheia ====== */
   .img-fullscreen-overlay {
     position: fixed;
     inset: 0;
@@ -712,8 +709,7 @@
     border-radius: 12px;
     box-shadow: 0 24px 70px rgba(0,0,0,0.5);
   }
-  /* ====================================================== */
-  /* ====== NOVO: ABA COMPRA/VENDA PÓ ====== */
+  /* ====== ABA COMPRA/VENDA PÓ ====== */
   #view-compravendapo .form-body{padding:18px}
   #view-compravendapo .form-body .field{margin-bottom:14px}
   #view-compravendapo .grid-cv{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
@@ -729,7 +725,72 @@
     letter-spacing:.4px;padding:3px 10px;border-radius:20px;text-transform:uppercase}
   #view-compravendapo .cv-badge.COMPRA{background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe}
   #view-compravendapo .cv-badge.VENDA{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
-  /* ====================================== */
+  /* ====== NOVO: DASHBOARDS COMPRA/VENDA/LUCRO ====== */
+  #view-compravendapo .cv-dashboards{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:14px;
+    padding:18px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#fbfcfe,#fff);
+  }
+  #view-compravendapo .cv-dash{
+    border-radius:12px;
+    padding:16px 18px;
+    border:1px solid;
+    position:relative;
+    overflow:hidden;
+    transition:.15s;
+  }
+  #view-compravendapo .cv-dash .lbl{
+    font-size:11px;
+    font-weight:800;
+    letter-spacing:.8px;
+    text-transform:uppercase;
+    opacity:.85;
+    margin-bottom:8px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  #view-compravendapo .cv-dash .lbl svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  #view-compravendapo .cv-dash .val{
+    font-size:24px;
+    font-weight:800;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:-.5px;
+    line-height:1.1;
+  }
+  #view-compravendapo .cv-dash .cnt{
+    font-size:11.5px;
+    opacity:.75;
+    margin-top:5px;
+    font-weight:600;
+  }
+  #view-compravendapo .cv-dash.compra{
+    background:linear-gradient(160deg,#eff6ff,#dbeafe);
+    border-color:#bfdbfe;
+    color:#1e40af;
+  }
+  #view-compravendapo .cv-dash.venda{
+    background:linear-gradient(160deg,#ecfdf5,#d1fae5);
+    border-color:#6ee7b7;
+    color:#065f46;
+  }
+  #view-compravendapo .cv-dash.lucro{
+    background:linear-gradient(160deg,#fefce8,#fef08a);
+    border-color:#fde047;
+    color:#854d0e;
+  }
+  #view-compravendapo .cv-dash.lucro.neg{
+    background:linear-gradient(160deg,#fef2f2,#fecaca);
+    border-color:#fca5a5;
+    color:#991b1b;
+  }
+  @media(max-width:900px){
+    #view-compravendapo .cv-dashboards{grid-template-columns:1fr}
+    #view-compravendapo .cv-dash .val{font-size:22px}
+  }
 </style>
 </head>
 <body>
@@ -1047,7 +1108,7 @@
   </section>
 </main>
 
-<!-- ====== NOVO: ABA COMPRA/VENDA PÓ ====== -->
+<!-- ====== ABA COMPRA/VENDA PÓ ====== -->
 <main class="wrap hidden" id="view-compravendapo">
   <section class="panel">
     <div class="panel-head">
@@ -1099,6 +1160,32 @@
     <div class="panel-head">
       <h2>Registros Salvos</h2>
       <span class="sub" id="cvCount">0 registros</span>
+    </div>
+    <div class="cv-dashboards">
+      <div class="cv-dash compra">
+        <div class="lbl">
+          <svg viewBox="0 0 24 24"><path d="M3 3h18v4H3z"/><path d="M3 9h18v12H3z"/><path d="M12 13v5"/><path d="M9.5 15.5L12 13l2.5 2.5"/></svg>
+          R$ Compra
+        </div>
+        <div class="val" id="cvDashCompra">R$ 0,00</div>
+        <div class="cnt" id="cvDashCompraCnt">0 registros</div>
+      </div>
+      <div class="cv-dash venda">
+        <div class="lbl">
+          <svg viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M17 7H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          R$ Venda
+        </div>
+        <div class="val" id="cvDashVenda">R$ 0,00</div>
+        <div class="cnt" id="cvDashVendaCnt">0 registros</div>
+      </div>
+      <div class="cv-dash lucro" id="cvDashLucroCard">
+        <div class="lbl">
+          <svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="14 7 21 7 21 14"/></svg>
+          R$ Lucro
+        </div>
+        <div class="val" id="cvDashLucro">R$ 0,00</div>
+        <div class="cnt" id="cvDashLucroCnt">Venda − Compra</div>
+      </div>
     </div>
     <div class="table-scroll">
       <table style="min-width:1000px">
@@ -2195,7 +2282,6 @@ function renderPesq(){
       card.addEventListener('click', (e) => {
         if (e.target.closest('.cart')) return;
 
-        // NOVO: Abrir imagem em tela cheia
         const imgWrapper = e.target.closest('.img');
         if (imgWrapper) {
           const imgEl = imgWrapper.querySelector('img');
@@ -2558,7 +2644,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     document.body.style.overflow = '';
     addLogoutButton(user, acc);
     applyPermissions(user);
-    /* Re-renderiza a aba Pesquisa para aplicar/remover desconto conforme o tipo do usuário */
     try { if (typeof renderPesq === 'function') renderPesq(); } catch(_){}
     showToast(`Bem-vindo, ${user} · ${acc.label || acc.type || ''}`);
     if (window.auditLog) {
@@ -4090,8 +4175,38 @@ document.getElementById('btnCota').addEventListener('click', () => {
     updateRsState();
   }
 
+  /* ===== NOVO: ATUALIZA OS DASHBOARDS (R$ Compra / R$ Venda / R$ Lucro) ===== */
+  function updateDashboards(){
+    let totalCompra = 0, countCompra = 0;
+    let totalVenda  = 0, countVenda  = 0;
+    registros.forEach(r => {
+      const v = parseFloat(r.rs) || 0;
+      if (r.tipo === 'VENDA') { totalVenda += v; countVenda++; }
+      else { totalCompra += v; countCompra++; }
+    });
+    const lucro = totalVenda - totalCompra;
+
+    const elCompra   = document.getElementById('cvDashCompra');
+    const elVenda    = document.getElementById('cvDashVenda');
+    const elLucro    = document.getElementById('cvDashLucro');
+    const elCompraC  = document.getElementById('cvDashCompraCnt');
+    const elVendaC   = document.getElementById('cvDashVendaCnt');
+    const elLucroC   = document.getElementById('cvDashLucroCnt');
+    const elLucroCard = document.getElementById('cvDashLucroCard');
+
+    if (elCompra)  elCompra.textContent  = fmtMoneyLocal(totalCompra);
+    if (elVenda)   elVenda.textContent   = fmtMoneyLocal(totalVenda);
+    if (elLucro)   elLucro.textContent   = fmtMoneyLocal(lucro);
+    if (elCompraC) elCompraC.textContent = countCompra + ' registro' + (countCompra === 1 ? '' : 's');
+    if (elVendaC)  elVendaC.textContent  = countVenda  + ' registro' + (countVenda  === 1 ? '' : 's');
+    if (elLucroC)  elLucroC.textContent  = 'Venda (' + countVenda + ') − Compra (' + countCompra + ')';
+    if (elLucroCard) elLucroCard.classList.toggle('neg', lucro < 0);
+  }
+  /* ========================================================================= */
+
   function render(){
     cvCount.textContent = registros.length + ' registro' + (registros.length === 1 ? '' : 's');
+    updateDashboards();
     if (!registros.length){
       cvTbody.innerHTML = '';
       cvEmpty.classList.remove('hidden');
@@ -4922,7 +5037,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
       JSON.stringify(cartItem.codigos) === JSON.stringify(item.cod.slice(0, 3))
     );
 
-    /* Aplica o desconto do tipo de usuário no preço unitário */
     const disc = (typeof getDiscountForUser === 'function') ? getDiscountForUser() : 0;
     const baseUnit = item._c ? item._c.rspeca : 0;
     const unitarioDesc = baseUnit * (1 - disc);
