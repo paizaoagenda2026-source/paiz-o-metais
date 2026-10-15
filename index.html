@@ -998,7 +998,7 @@
     </div>
     <div class="footnote">
       Teores expressos em <b>g/kg</b> (gramas de metal por quilo de catalisador). Valores em <b>R$</b> calculados com os parâmetros vigentes — consulte a aba <b>Cotações &amp; Parâmetros</b>. Estimativa de referência, sujeita a análise laboratorial.<br>
-      <b>Duas pedras na mesma linha:</b> quando a peça possui Pedra&nbsp;2 cadastrada, o peso e os teores exibidos são a <b>soma das duas pedras</b>, e o valor apresentado é o <b>total das duas</b>.
+      <b>Múltiplas pedras na mesma linha:</b> quando a peça possui Pedras&nbsp;2, 3 ou 4 cadastradas, o peso e os teores exibidos são a <b>soma de todas as pedras</b>, e o valor apresentado é o <b>total de todas</b>.
     </div>
   </section>
 </main>
@@ -1050,6 +1050,24 @@
           <div class="field"><label for="novoPd2">Teor Pd 2 (g/kg)</label><input type="number" step="0.001" min="0" id="novoPd2"></div>
           <div class="field"><label for="novoPt2">Teor Pt 2 (g/kg)</label><input type="number" step="0.001" min="0" id="novoPt2"></div>
           <div class="field"><label for="novoRh2">Teor Rh 2 (g/kg)</label><input type="number" step="0.001" min="0" id="novoRh2"></div>
+        </div>
+      </div>
+      <div class="pedra-block">
+        <div class="sec-title">Pedra 3 <span class="pedra-opcional">(opcional — será somada às anteriores)</span></div>
+        <div class="grid2">
+          <div class="field"><label for="novoPeso3">Peso 3 (kg)</label><input type="number" step="0.001" min="0" id="novoPeso3"></div>
+          <div class="field"><label for="novoPd3">Teor Pd 3 (g/kg)</label><input type="number" step="0.001" min="0" id="novoPd3"></div>
+          <div class="field"><label for="novoPt3">Teor Pt 3 (g/kg)</label><input type="number" step="0.001" min="0" id="novoPt3"></div>
+          <div class="field"><label for="novoRh3">Teor Rh 3 (g/kg)</label><input type="number" step="0.001" min="0" id="novoRh3"></div>
+        </div>
+      </div>
+      <div class="pedra-block">
+        <div class="sec-title">Pedra 4 <span class="pedra-opcional">(opcional — será somada às anteriores)</span></div>
+        <div class="grid2">
+          <div class="field"><label for="novoPeso4">Peso 4 (kg)</label><input type="number" step="0.001" min="0" id="novoPeso4"></div>
+          <div class="field"><label for="novoPd4">Teor Pd 4 (g/kg)</label><input type="number" step="0.001" min="0" id="novoPd4"></div>
+          <div class="field"><label for="novoPt4">Teor Pt 4 (g/kg)</label><input type="number" step="0.001" min="0" id="novoPt4"></div>
+          <div class="field"><label for="novoRh4">Teor Rh 4 (g/kg)</label><input type="number" step="0.001" min="0" id="novoRh4"></div>
         </div>
       </div>
       <div class="field" style="margin-top:16px">
@@ -1617,7 +1635,15 @@ for(const line of RAW.split('\n')){
     peso2: parseFloat(p[9]) || 0,
     pd2: parseFloat(p[10]) || 0,
     pt2: parseFloat(p[11]) || 0,
-    rh2: parseFloat(p[12]) || 0
+    rh2: parseFloat(p[12]) || 0,
+    peso3: parseFloat(p[13]) || 0,
+    pd3: parseFloat(p[14]) || 0,
+    pt3: parseFloat(p[15]) || 0,
+    rh3: parseFloat(p[16]) || 0,
+    peso4: parseFloat(p[17]) || 0,
+    pd4: parseFloat(p[18]) || 0,
+    pt4: parseFloat(p[19]) || 0,
+    rh4: parseFloat(p[20]) || 0
   });
 }
 
@@ -1652,14 +1678,26 @@ try{
 
 function somaPedras(it){
   return {
-    peso: (it.peso || 0) + (it.peso2 || 0),
-    pd:   (it.pd   || 0) + (it.pd2   || 0),
-    pt:   (it.pt   || 0) + (it.pt2   || 0),
-    rh:   (it.rh   || 0) + (it.rh2   || 0)
+    peso: (it.peso || 0) + (it.peso2 || 0) + (it.peso3 || 0) + (it.peso4 || 0),
+    pd:   (it.pd   || 0) + (it.pd2   || 0) + (it.pd3   || 0) + (it.pd4   || 0),
+    pt:   (it.pt   || 0) + (it.pt2   || 0) + (it.pt3   || 0) + (it.pt4   || 0),
+    rh:   (it.rh   || 0) + (it.rh2   || 0) + (it.rh3   || 0) + (it.rh4   || 0)
   };
 }
+function pedraTemDados(it, n){
+  const s = n === 1 ? '' : String(n);
+  return (it['peso'+s] || 0) > 0 || (it['pd'+s] || 0) > 0
+      || (it['pt'+s] || 0) > 0 || (it['rh'+s] || 0) > 0;
+}
+function numPedras(it){
+  let n = 1;
+  if (pedraTemDados(it, 2)) n = 2;
+  if (pedraTemDados(it, 3)) n = 3;
+  if (pedraTemDados(it, 4)) n = 4;
+  return n;
+}
 function temDuasPedras(it){
-  return (it.peso2 || 0) > 0 || (it.pd2 || 0) > 0 || (it.pt2 || 0) > 0 || (it.rh2 || 0) > 0;
+  return numPedras(it) > 1;
 }
 
 function precoKgBRL(cotacaoUSDozt){ return cotacaoUSDozt * OZT_KG * CFG.dolar; }
@@ -1687,7 +1725,12 @@ function calcItem(it){
   const rskg = Math.max(0, brutoKg - CFG.custoKg);
   const rskg1 = calcRskgFromTeores(orig.pd || 0, orig.pt || 0, orig.rh || 0);
   const rskg2 = calcRskgFromTeores(orig.pd2 || 0, orig.pt2 || 0, orig.rh2 || 0);
-  const rspeca = rskg1 * (orig.peso || 0) + rskg2 * (orig.peso2 || 0);
+  const rskg3 = calcRskgFromTeores(orig.pd3 || 0, orig.pt3 || 0, orig.rh3 || 0);
+  const rskg4 = calcRskgFromTeores(orig.pd4 || 0, orig.pt4 || 0, orig.rh4 || 0);
+  const rspeca = rskg1 * (orig.peso || 0)
+               + rskg2 * (orig.peso2 || 0)
+               + rskg3 * (orig.peso3 || 0)
+               + rskg4 * (orig.peso4 || 0);
   return { pPd, pPt, pRh, vPd, vPt, vRh, brutoKg, rskg, rspeca };
 }
 
@@ -1798,7 +1841,7 @@ function render(){
           `<span class="code-chip${i===0?' primary':''}">${esc(x)}</span>`).join('') +
          ((it.cod||[]).length > 3 ? `<span class="code-chip">+${it.cod.length-3}</span>` : ''))
       : '<span class="code-chip">—</span>';
-    const marker = it._duas ? `<span class="two-stones" title="Valor total somando as duas pedras desta linha">2P</span>` : '';
+    const marker = it._duas ? `<span class="two-stones" title="Valor total somando as pedras desta linha">${numPedras(it._orig)}P</span>` : '';
     html += `<tr data-ref="${esc(it.ref)}">
       <td>${thumbHTML(it.img)}</td>
       <td>${cods}</td>
@@ -1836,9 +1879,14 @@ function render(){
   });
 }
 
-function vMetalPeca(t1, w1, t2, w2, precoKgMetal, pay){
-  return ((t1||0)/1000) * precoKgMetal * ((pay||0)/100) * (w1||0)
-       + ((t2||0)/1000) * precoKgMetal * ((pay||0)/100) * (w2||0);
+function vMetalPeca(orig, propT, propW, precoKgMetal, pay){
+  let sum = 0;
+  for (const suf of ['', '2', '3', '4']){
+    const t = orig[propT + suf] || 0;
+    const w = orig[propW + suf] || 0;
+    sum += (t/1000) * precoKgMetal * ((pay||0)/100) * w;
+  }
+  return sum;
 }
 
 function openModal(item, applyDiscount){
@@ -1846,6 +1894,7 @@ function openModal(item, applyDiscount){
   const orig = item._orig || item;
   const c = item._c || calcItem(it);
   const duas = temDuasPedras(orig);
+  const nPedras = numPedras(orig);
   const disc = applyDiscount ? getDiscountForUser() : 0;
   const dFactor = 1 - disc;
   const fmD = n => {
@@ -1858,12 +1907,32 @@ function openModal(item, applyDiscount){
   const cods = (orig.cod||[]).map(x => `<span class="code-chip">${esc(x)}</span>`).join('');
   const linha = (nome, teor, valorUn, valorPeca) => teor > 0 ? `
     <tr><td>${nome}</td><td>${fmtNum(teor,3)}</td><td>${fmtNum(valorUn,0)}</td><td>${fmtNum(valorPeca * dFactor,2)}</td></tr>` : '';
+
+  /* Detalhe de cada pedra (1 a 4) */
+  let detalhePedras = '';
+  if (duas){
+    let rows = '';
+    for (let i = 1; i <= 4; i++){
+      const suf = i === 1 ? '' : String(i);
+      const p  = orig['peso' + suf] || 0;
+      const pd = orig['pd'   + suf] || 0;
+      const pt = orig['pt'   + suf] || 0;
+      const rh = orig['rh'   + suf] || 0;
+      if (i > 1 && !p && !pd && !pt && !rh) continue;
+      rows += `<div class="kv"><span>Pedra ${i} · peso</span><span>${fmtNum(p,3)} kg</span></div>
+               <div class="kv"><span>Pedra ${i} · Pd / Pt / Rh</span><span>${fmtTeor(pd)} / ${fmtTeor(pt)} / ${fmtTeor(rh)}</span></div>`;
+    }
+    detalhePedras = `
+      <div class="sec-title" style="margin-top:20px">Detalhe das Pedras</div>
+      ${rows}`;
+  }
+
   document.getElementById('modal').innerHTML = `
     <div class="modal-head">
       ${thumbHTML(orig.img, 120)}
       <div>
         <div class="mk">${esc(orig.marca)}</div>
-        <h3>${orig.modelo && orig.modelo!=='—' ? esc(orig.modelo) : 'Modelo não informado'}${duas?' <span class="stones-badge">2 PEDRAS</span>':''}</h3>
+        <h3>${orig.modelo && orig.modelo!=='—' ? esc(orig.modelo) : 'Modelo não informado'}${duas?' <span class="stones-badge">'+nPedras+' PEDRAS</span>':''}</h3>
         <div style="margin-top:6px">${cods}</div>
         <div style="margin-top:10px;font-size:12px;color:#5a6a7d">Código: <b>${esc(orig.cod.join(' / '))}</b> · Peso${duas?' total':''} <b>${fmtNum(it.peso,3)} kg</b></div>
       </div>
@@ -1872,20 +1941,14 @@ function openModal(item, applyDiscount){
     <div class="modal-body">
       <div class="grid2">
         <div>
-          <div class="sec-title">Composição Química (g/kg)${duas?' — Soma das 2 pedras':''}</div>
+          <div class="sec-title">Composição Química (g/kg)${duas?' — Soma das '+nPedras+' pedras':''}</div>
           <div class="kv"><span>Paládio (Pd)</span><span>${fmtTeor(it.pd)}</span></div>
           <div class="kv"><span>Platina (Pt)</span><span>${fmtTeor(it.pt)}</span></div>
           <div class="kv"><span>Ródio (Rh)</span><span>${fmtTeor(it.rh)}</span></div>
           <div class="kv"><span>Soma dos teores</span><span>${fmtNum(it.pd+it.pt+it.rh,3)}</span></div>
-          ${duas ? `
-          <div class="sec-title" style="margin-top:20px">Detalhe das Pedras</div>
-          <div class="kv"><span>Pedra 1 · peso</span><span>${fmtNum(orig.peso,3)} kg</span></div>
-          <div class="kv"><span>Pedra 1 · Pd / Pt / Rh</span><span>${fmtTeor(orig.pd)} / ${fmtTeor(orig.pt)} / ${fmtTeor(orig.rh)}</span></div>
-          <div class="kv"><span>Pedra 2 · peso</span><span>${fmtNum(orig.peso2,3)} kg</span></div>
-          <div class="kv"><span>Pedra 2 · Pd / Pt / Rh</span><span>${fmtTeor(orig.pd2)} / ${fmtTeor(orig.pt2)} / ${fmtTeor(orig.rh2)}</span></div>
-          ` : ''}
+          ${detalhePedras}
           <div class="sec-title" style="margin-top:22px">Dados da Peça</div>
-          <div class="kv"><span>Peso líquido${duas?' (2 pedras)':''}</span><span>${fmtNum(it.peso,3)} kg</span></div>
+          <div class="kv"><span>Peso líquido${duas?' ('+nPedras+' pedras)':''}</span><span>${fmtNum(it.peso,3)} kg</span></div>
           <div class="kv"><span>Referência interna</span><span>#${esc(orig.ref)}</span></div>
         </div>
         <div>
@@ -1893,9 +1956,9 @@ function openModal(item, applyDiscount){
           <table class="mini-table">
             <thead><tr><th>Metal</th><th>Teor</th><th>R$/kg metal</th><th>Valor peça</th></tr></thead>
             <tbody>
-              ${linha('Paládio', it.pd, c.pPd, vMetalPeca(orig.pd, orig.peso, orig.pd2, orig.peso2, c.pPd, CFG.payPd))}
-              ${linha('Platina', it.pt, c.pPt, vMetalPeca(orig.pt, orig.peso, orig.pt2, orig.peso2, c.pPt, CFG.payPt))}
-              ${linha('Ródio',   it.rh, c.pRh, vMetalPeca(orig.rh, orig.peso, orig.rh2, orig.peso2, c.pRh, CFG.payRh))}
+              ${linha('Paládio', it.pd, c.pPd, vMetalPeca(orig, 'pd', 'peso', c.pPd, CFG.payPd))}
+              ${linha('Platina', it.pt, c.pPt, vMetalPeca(orig, 'pt', 'peso', c.pPt, CFG.payPt))}
+              ${linha('Ródio',   it.rh, c.pRh, vMetalPeca(orig, 'rh', 'peso', c.pRh, CFG.payRh))}
             </tbody>
           </table>
           <div class="total-box">
@@ -1904,7 +1967,7 @@ function openModal(item, applyDiscount){
             <div class="row" style="border-top:1px dashed #bbf7d0;margin-top:6px;padding-top:8px">
               <span><b>Valor líquido por kg</b></span><span><b>${fmD(c.rskg)}</b></span>
             </div>
-            <div class="row big"><span>Valor da peça${duas?' (2 pedras)':''}${discBadge}</span><span>${fmD(c.rspeca)}</span></div>
+            <div class="row big"><span>Valor da peça${duas?' ('+nPedras+' pedras)':''}${discBadge}</span><span>${fmD(c.rspeca)}</span></div>
           </div>
         </div>
       </div>
@@ -1936,7 +1999,7 @@ function openEditModal(item){
         <h3>REF. interna #${esc(orig.ref)}</h3>
         <div style="margin-top:6px;font-size:12px;color:#5a6a7d">
           Altere qualquer campo e clique em <b>Salvar</b>. Os valores em R$ serão recalculados automaticamente.
-          Preencha a <b>Pedra 2</b> se a peça tiver duas pedras — peso e teores serão somados.
+          Preencha as <b>Pedras 2, 3 ou 4</b> se a peça tiver múltiplas pedras — peso e teores serão somados.
         </div>
       </div>
       <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -1965,6 +2028,20 @@ function openEditModal(item){
         <div class="field"><label>Teor Pd 2 (g/kg)</label><input type="number" step="0.001" min="0" id="edPd2" value="${orig.pd2||0}"></div>
         <div class="field"><label>Teor Pt 2 (g/kg)</label><input type="number" step="0.001" min="0" id="edPt2" value="${orig.pt2||0}"></div>
         <div class="field"><label>Teor Rh 2 (g/kg)</label><input type="number" step="0.001" min="0" id="edRh2" value="${orig.rh2||0}"></div>
+      </div>
+      <div class="sec-title" style="margin-top:14px">Pedra 3 <span style="text-transform:none;font-weight:400;color:#93a2b3">(opcional — será somada às anteriores)</span></div>
+      <div class="grid2">
+        <div class="field"><label>Peso 3 (kg)</label><input type="number" step="0.001" min="0" id="edPeso3" value="${orig.peso3||0}"></div>
+        <div class="field"><label>Teor Pd 3 (g/kg)</label><input type="number" step="0.001" min="0" id="edPd3" value="${orig.pd3||0}"></div>
+        <div class="field"><label>Teor Pt 3 (g/kg)</label><input type="number" step="0.001" min="0" id="edPt3" value="${orig.pt3||0}"></div>
+        <div class="field"><label>Teor Rh 3 (g/kg)</label><input type="number" step="0.001" min="0" id="edRh3" value="${orig.rh3||0}"></div>
+      </div>
+      <div class="sec-title" style="margin-top:14px">Pedra 4 <span style="text-transform:none;font-weight:400;color:#93a2b3">(opcional — será somada às anteriores)</span></div>
+      <div class="grid2">
+        <div class="field"><label>Peso 4 (kg)</label><input type="number" step="0.001" min="0" id="edPeso4" value="${orig.peso4||0}"></div>
+        <div class="field"><label>Teor Pd 4 (g/kg)</label><input type="number" step="0.001" min="0" id="edPd4" value="${orig.pd4||0}"></div>
+        <div class="field"><label>Teor Pt 4 (g/kg)</label><input type="number" step="0.001" min="0" id="edPt4" value="${orig.pt4||0}"></div>
+        <div class="field"><label>Teor Rh 4 (g/kg)</label><input type="number" step="0.001" min="0" id="edRh4" value="${orig.rh4||0}"></div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">
         <button type="button" class="btn" id="edCancel" onclick="closeModal()">Cancelar</button>
@@ -2008,7 +2085,15 @@ function saveEdit(original){
     peso2:  n('edPeso2'),
     pd2:    n('edPd2'),
     pt2:    n('edPt2'),
-    rh2:    n('edRh2')
+    rh2:    n('edRh2'),
+    peso3:  n('edPeso3'),
+    pd3:    n('edPd3'),
+    pt3:    n('edPt3'),
+    rh3:    n('edRh3'),
+    peso4:  n('edPeso4'),
+    pd4:    n('edPd4'),
+    pt4:    n('edPt4'),
+    rh4:    n('edRh4')
   };
   if (antigo.img !== novoImg) DATA[idx].storagePath = '';
   try { localStorage.setItem('paizao_catalisadores', JSON.stringify(DATA)); } catch(e){}
@@ -3777,6 +3862,14 @@ document.getElementById('btnCota').addEventListener('click', () => {
   const novoPd2     = $('novoPd2');
   const novoPt2     = $('novoPt2');
   const novoRh2     = $('novoRh2');
+  const novoPeso3   = $('novoPeso3');
+  const novoPd3     = $('novoPd3');
+  const novoPt3     = $('novoPt3');
+  const novoRh3     = $('novoRh3');
+  const novoPeso4   = $('novoPeso4');
+  const novoPd4     = $('novoPd4');
+  const novoPt4     = $('novoPt4');
+  const novoRh4     = $('novoRh4');
   const novoImgPrev = $('novoImgPreview');
   const novoImgRem  = $('novoImgRemove');
   const novoFileIn  = $('novoFileInput');
@@ -3921,6 +4014,14 @@ document.getElementById('btnCota').addEventListener('click', () => {
     novoPd2.value    = '';
     novoPt2.value    = '';
     novoRh2.value    = '';
+    novoPeso3.value  = '';
+    novoPd3.value    = '';
+    novoPt3.value    = '';
+    novoRh3.value    = '';
+    novoPeso4.value  = '';
+    novoPd4.value    = '';
+    novoPt4.value    = '';
+    novoRh4.value    = '';
     setPreview('');
     updateRefHint();
   }
@@ -3991,7 +4092,15 @@ document.getElementById('btnCota').addEventListener('click', () => {
       peso2:  num(novoPeso2.value),
       pd2:    num(novoPd2.value),
       pt2:    num(novoPt2.value),
-      rh2:    num(novoRh2.value)
+      rh2:    num(novoRh2.value),
+      peso3:  num(novoPeso3.value),
+      pd3:    num(novoPd3.value),
+      pt3:    num(novoPt3.value),
+      rh3:    num(novoRh3.value),
+      peso4:  num(novoPeso4.value),
+      pd4:    num(novoPd4.value),
+      pt4:    num(novoPt4.value),
+      rh4:    num(novoRh4.value)
     };
 
     DATA.push(novo);
