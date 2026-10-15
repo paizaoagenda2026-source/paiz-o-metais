@@ -599,6 +599,7 @@
   .type-badge.ADM{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca}
   .type-badge.COMPRADOR{background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe}
   .type-badge.AGREGADO{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
+  .type-badge.AGREGADO2{background:#ccfbf1;color:#0f766e;border:1px solid #99f6e4}
   .type-badge.CLIENTE{background:#fef3c7;color:#b45309;border:1px solid #fcd34d}
   .type-badge.TRIAGEM{background:#fce7f3;color:#9d174d;border:1px solid #fbcfe8}
   .type-badge.FINANCEIRO{background:#cffafe;color:#155e75;border:1px solid #a5f3fc}
@@ -1280,8 +1281,9 @@
           <select id="usrTipo">
             <option value="ADM">ADM — Administrador</option>
             <option value="COMPRADOR">COMPRADOR</option>
-            <option value="AGREGADO">AGREGADO</option>
-            <option value="CLIENTE">CLIENTE</option>
+            <option value="AGREGADO">AGREGADO (10% desc.)</option>
+            <option value="AGREGADO2">AGREGADO 2 (30% desc.)</option>
+            <option value="CLIENTE">CLIENTE (20% desc.)</option>
             <option value="TRIAGEM">TRIAGEM</option>
             <option value="FINANCEIRO">FINANCEIRO</option>
           </select>
@@ -1607,6 +1609,17 @@ const norm = s => String(s ?? '').toLowerCase()
 const fmtNum = (n, d=2) => Number(n).toLocaleString('pt-BR',{minimumFractionDigits:d, maximumFractionDigits:d});
 const fmtTeor = n => (n ? fmtNum(n,3) : '—');
 const fmtMoney = n => n > 0 ? 'R$ ' + fmtNum(n,2) : '—';
+
+/* ===== DESCONTO POR TIPO DE USUÁRIO (aplicado na aba Pesquisa) ===== */
+function getDiscountForUser(){
+  const t = String(window.currentUserType || '').toUpperCase();
+  if (t === 'AGREGADO')  return 0.10;
+  if (t === 'AGREGADO2') return 0.30;
+  if (t === 'CLIENTE')   return 0.20;
+  return 0;
+}
+/* ================================================================== */
+
 const esc = s => String(s ?? '')
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
   .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -1741,14 +1754,23 @@ function vMetalPeca(t1, w1, t2, w2, precoKgMetal, pay){
        + ((t2||0)/1000) * precoKgMetal * ((pay||0)/100) * (w2||0);
 }
 
-function openModal(item){
+function openModal(item, applyDiscount){
   const it = item;
   const orig = item._orig || item;
   const c = item._c || calcItem(it);
   const duas = temDuasPedras(orig);
+  const disc = applyDiscount ? getDiscountForUser() : 0;
+  const dFactor = 1 - disc;
+  const fmD = n => {
+    const v = (n || 0) * dFactor;
+    return v > 0 ? 'R$ ' + fmtNum(v, 2) : '—';
+  };
+  const discBadge = disc > 0
+    ? ` <span class="stones-badge" style="background:#dcfce7;border-color:#86efac;color:#166534">-${Math.round(disc*100)}%</span>`
+    : '';
   const cods = (orig.cod||[]).map(x => `<span class="code-chip">${esc(x)}</span>`).join('');
   const linha = (nome, teor, valorUn, valorPeca) => teor > 0 ? `
-    <tr><td>${nome}</td><td>${fmtNum(teor,3)}</td><td>${fmtNum(valorUn,0)}</td><td>${fmtNum(valorPeca,2)}</td></tr>` : '';
+    <tr><td>${nome}</td><td>${fmtNum(teor,3)}</td><td>${fmtNum(valorUn,0)}</td><td>${fmtNum(valorPeca * dFactor,2)}</td></tr>` : '';
   document.getElementById('modal').innerHTML = `
     <div class="modal-head">
       ${thumbHTML(orig.img, 120)}
@@ -1790,12 +1812,12 @@ function openModal(item){
             </tbody>
           </table>
           <div class="total-box">
-            <div class="row"><span>Valor bruto por kg</span><span>${fmtMoney(c.brutoKg)}</span></div>
-            <div class="row"><span>Custo operacional</span><span>- ${fmtMoney(CFG.custoKg)}</span></div>
+            <div class="row"><span>Valor bruto por kg</span><span>${fmD(c.brutoKg)}</span></div>
+            <div class="row"><span>Custo operacional</span><span>- ${fmD(CFG.custoKg)}</span></div>
             <div class="row" style="border-top:1px dashed #bbf7d0;margin-top:6px;padding-top:8px">
-              <span><b>Valor líquido por kg</b></span><span><b>${fmtMoney(c.rskg)}</b></span>
+              <span><b>Valor líquido por kg</b></span><span><b>${fmD(c.rskg)}</b></span>
             </div>
-            <div class="row big"><span>Valor da peça${duas?' (2 pedras)':''}</span><span>${fmtMoney(c.rspeca)}</span></div>
+            <div class="row big"><span>Valor da peça${duas?' (2 pedras)':''}${discBadge}</span><span>${fmD(c.rspeca)}</span></div>
           </div>
         </div>
       </div>
@@ -2084,6 +2106,8 @@ function pesqFiltered(){
 
 function pesqCardHTML(it){
   const c = it._c;
+  const disc = getDiscountForUser();
+  const precoFinal = c.rspeca * (1 - disc);
   const codList = (it.cod && it.cod.length) ? it.cod : ['—'];
   const cod = codList.join(' · ');
   const codTitle = codList.join(' | ');
@@ -2091,16 +2115,19 @@ function pesqCardHTML(it){
   const img = it.img
     ? `<img loading="lazy" src="${imgSrc(it.img, 'w400')}" alt="" onerror="this.style.display='none'">`
     : '';
-  const precoHTML = c.rspeca > 0
-    ? `<span class="price">R$ ${fmtNum(c.rspeca,2)}</span>`
+  const precoHTML = precoFinal > 0
+    ? `<span class="price">R$ ${fmtNum(precoFinal,2)}</span>`
     : `<span class="price muted">—</span>`;
+  const discTag = disc > 0
+    ? ` <span class="stones-badge" style="background:#dcfce7;border-color:#86efac;color:#166534">-${Math.round(disc*100)}%</span>`
+    : '';
   return `<article class="pesq-card" data-ref="${esc(it.ref)}">
     <div class="img">${img}</div>
     <div class="cod" title="${esc(codTitle)}">${esc(cod)}</div>
     <div class="name">${esc(marcaModelo || 'Modelo não informado')}</div>
     <div class="peso">${fmtNum(it.peso,3)} kg</div>
     <div class="foot">
-      ${precoHTML}
+      ${precoHTML}${discTag}
       <span class="cart" aria-hidden="true" data-add-cart="${esc(it.ref)}">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
       </span>
@@ -2179,7 +2206,7 @@ function renderPesq(){
         }
 
         const item = all.find(x => x.ref === card.dataset.ref);
-        if(item) openModal(item);
+        if(item) openModal(item, true);
       });
     });
     results.querySelectorAll('[data-add-cart]').forEach(btn => {
@@ -2531,6 +2558,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
     document.body.style.overflow = '';
     addLogoutButton(user, acc);
     applyPermissions(user);
+    /* Re-renderiza a aba Pesquisa para aplicar/remover desconto conforme o tipo do usuário */
+    try { if (typeof renderPesq === 'function') renderPesq(); } catch(_){}
     showToast(`Bem-vindo, ${user} · ${acc.label || acc.type || ''}`);
     if (window.auditLog) {
       try { window.auditLog('LOGIN', 'Entrou no sistema — ' + (acc.label || acc.type || '')); } catch(_){}
@@ -3483,8 +3512,24 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if(!perms.length){ alert('Selecione ao menos uma permissão de acesso.'); return; }
 
     const finalUser = editUser || user;
-    const labelMap = { ADM: 'Administrador', COMPRADOR: 'Comprador', AGREGADO: 'Agregado', CLIENTE: 'Cliente', TRIAGEM: 'Triagem', FINANCEIRO: 'Financeiro' };
-    const roleMap = { ADM: 'admin', COMPRADOR: 'comprador', AGREGADO: 'agregado', CLIENTE: 'cliente', TRIAGEM: 'triagem', FINANCEIRO: 'financeiro' };
+    const labelMap = {
+      ADM: 'Administrador',
+      COMPRADOR: 'Comprador',
+      AGREGADO: 'Agregado',
+      AGREGADO2: 'Agregado 2',
+      CLIENTE: 'Cliente',
+      TRIAGEM: 'Triagem',
+      FINANCEIRO: 'Financeiro'
+    };
+    const roleMap = {
+      ADM: 'admin',
+      COMPRADOR: 'comprador',
+      AGREGADO: 'agregado',
+      AGREGADO2: 'agregado2',
+      CLIENTE: 'cliente',
+      TRIAGEM: 'triagem',
+      FINANCEIRO: 'financeiro'
+    };
 
     const existing = USERS[finalUser] || {};
 
@@ -3534,6 +3579,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
       ADM: ['catalisador','novo','po','compravendapo','pesquisa','cadastro','cotacoes','usuarios','auditoria','carrinho'],
       COMPRADOR: ['pesquisa', 'po', 'carrinho'],
       AGREGADO: ['pesquisa', 'po', 'carrinho'],
+      AGREGADO2: ['pesquisa', 'po', 'carrinho'],
       CLIENTE: ['pesquisa', 'po', 'carrinho'],
       TRIAGEM: ['pesquisa', 'po', 'carrinho'],
       FINANCEIRO: ['pesquisa', 'po', 'carrinho']
@@ -4876,12 +4922,16 @@ document.getElementById('btnCota').addEventListener('click', () => {
       JSON.stringify(cartItem.codigos) === JSON.stringify(item.cod.slice(0, 3))
     );
 
+    /* Aplica o desconto do tipo de usuário no preço unitário */
+    const disc = (typeof getDiscountForUser === 'function') ? getDiscountForUser() : 0;
+    const baseUnit = item._c ? item._c.rspeca : 0;
+    const unitarioDesc = baseUnit * (1 - disc);
+
     if (existingIndex >= 0) {
       cartItems[existingIndex].quantidade += 1;
       cartItems[existingIndex].total = cartItems[existingIndex].quantidade * cartItems[existingIndex].unitario;
     } else {
       const codigos = (item.cod || []).slice(0, 3);
-      const unitario = item._c ? item._c.rspeca : 0;
 
       cartItems.push({
         ref: item.ref,
@@ -4890,8 +4940,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
         data: new Date().toISOString().split('T')[0],
         codigos: codigos,
         quantidade: 1,
-        unitario: unitario,
-        total: unitario
+        unitario: unitarioDesc,
+        total: unitarioDesc
       });
     }
 
