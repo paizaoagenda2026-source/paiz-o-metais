@@ -126,13 +126,20 @@
   window.__fbStorage = storage;
   window.__fbDb = db;
 
+  /* ============================================================
+     CORREÇÃO: __fbCompress com timeout (evita travar o app)
+     ============================================================ */
   window.__fbCompress = function(dataUrl, maxDim, quality){
     return new Promise(function(resolve){
       if (!dataUrl || typeof dataUrl !== 'string' || dataUrl.indexOf('data:') !== 0){
         resolve(dataUrl); return;
       }
+      var done = false;
+      function finish(v){ if (done) return; done = true; resolve(v); }
+      var timer = setTimeout(function(){ finish(dataUrl); }, 15000);
       var img = new Image();
       img.onload = function(){
+        clearTimeout(timer);
         try{
           var w = img.naturalWidth || img.width;
           var h = img.naturalHeight || img.height;
@@ -143,36 +150,48 @@
           c.width = nw; c.height = nh;
           var ctx = c.getContext('2d');
           ctx.drawImage(img, 0, 0, nw, nh);
-          resolve(c.toDataURL('image/jpeg', quality || 0.75));
-        } catch(e){ resolve(dataUrl); }
+          finish(c.toDataURL('image/jpeg', quality || 0.75));
+        } catch(e){ finish(dataUrl); }
       };
-      img.onerror = function(){ resolve(dataUrl); };
+      img.onerror = function(){ clearTimeout(timer); finish(dataUrl); };
       img.src = dataUrl;
     });
   };
 
-  window.__fbUploadImage = async function(dataUrl, folder){
+  /* ============================================================
+     CORREÇÃO: __fbUploadImage com timeout (evita travar o app)
+     ============================================================ */
+  window.__fbUploadImage = function(dataUrl, folder){
     if (!storage || !dataUrl || dataUrl.indexOf('data:') !== 0){
-      return { url: dataUrl, path: null, ok: false };
+      return Promise.resolve({ url: dataUrl, path: null, ok: false });
     }
-    try{
-      var parts = dataUrl.split(',');
-      var mimeMatch = parts[0].match(/data:([^;]+)/);
-      var mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-      var bstr = atob(parts[1]);
-      var arr = new Uint8Array(bstr.length);
-      for (var i = 0; i < bstr.length; i++) arr[i] = bstr.charCodeAt(i);
-      var blob = new Blob([arr], { type: mime });
-      var path = (folder || 'paizao') + '/' + Date.now() + '_' +
-                 Math.random().toString(36).slice(2,10) + '.jpg';
-      var ref = storage.ref(path);
-      await ref.put(blob, { contentType: 'image/jpeg' });
-      var url = await ref.getDownloadURL();
-      return { url: url, path: path, ok: true };
-    } catch(e){
-      console.warn('[FB] upload:', e.message);
-      return { url: dataUrl, path: null, ok: false, error: e.message };
-    }
+    var upload = (async function(){
+      try{
+        var parts = dataUrl.split(',');
+        var mimeMatch = parts[0].match(/data:([^;]+)/);
+        var mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        var bstr = atob(parts[1]);
+        var arr = new Uint8Array(bstr.length);
+        for (var i = 0; i < bstr.length; i++) arr[i] = bstr.charCodeAt(i);
+        var blob = new Blob([arr], { type: mime });
+        var path = (folder || 'paizao') + '/' + Date.now() + '_' +
+                   Math.random().toString(36).slice(2,10) + '.jpg';
+        var ref = storage.ref(path);
+        await ref.put(blob, { contentType: 'image/jpeg' });
+        var url = await ref.getDownloadURL();
+        return { url: url, path: path, ok: true };
+      } catch(e){
+        console.warn('[FB] upload:', e.message);
+        return { url: dataUrl, path: null, ok: false, error: e.message };
+      }
+    })();
+    var timeout = new Promise(function(resolve){
+      setTimeout(function(){
+        console.warn('[FB] upload timeout — usando base64 local');
+        resolve({ url: dataUrl, path: null, ok: false, error: 'timeout' });
+      }, 25000);
+    });
+    return Promise.race([upload, timeout]);
   };
 
   window.__fbDeleteImage = async function(path){
