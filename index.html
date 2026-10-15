@@ -1536,7 +1536,10 @@ function thumbHTML(img, size){
   </div>`;
 }
 
-const state = { q:'', marca:'', sortKey:'ref', sortDir:'asc' };
+/* =========================================================
+   ORDENAÇÃO PADRÃO: MARCA / MODELO EM ORDEM ALFABÉTICA (A → Z)
+   ========================================================= */
+const state = { q:'', marca:'', sortKey:'marca', sortDir:'asc' };
 
 function getFiltered(){
   const q = norm(state.q);
