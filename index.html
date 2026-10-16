@@ -622,16 +622,16 @@
     display:inline-flex;
     align-items:center;
     justify-content:center;
-    width:34px;
-    height:34px;
-    border-radius:8px;
+    width:28px;
+    height:20px;
+    border-radius:5px;
     background:#f8fafc;
     border:1px solid #dbe4ee;
     flex-shrink:0;
     transition:.15s;
   }
   .pesq-flag-badge img{
-    width:24px;height:16px;object-fit:cover;border-radius:2px;
+    width:22px;height:15px;object-fit:cover;border-radius:3px;
     box-shadow:0 1px 2px rgba(0,0,0,.12);
   }
   .pesq-card:hover .pesq-flag-badge{
@@ -2096,7 +2096,6 @@ function openModal(item, applyDiscount){
     const v = (n || 0) * dFactor;
     return v > 0 ? 'R$ ' + fmtNum(v, 2) : '—';
   };
-  /* ALTERAÇÃO SOLICITADA: ocultar somente a porcentagem de desconto */
   const discBadge = '';
   const cods = (orig.cod||[]).map(x => `<span class="code-chip">${esc(x)}</span>`).join('');
   const linha = (nome, teor, valorUn, valorPeca) => teor > 0 ? `
@@ -2564,7 +2563,6 @@ function pesqCardHTML(it){
   const precoHTML = precoFinal > 0
     ? `<span class="price">R$ ${fmtNum(precoFinal,2)}</span>`
     : `<span class="price muted">—</span>`;
-  /* ALTERAÇÃO SOLICITADA: ocultar somente a porcentagem de desconto */
   const discTag = '';
 
   /* ====== BANDEIRA DO PAÍS (imagem, funciona em qualquer SO) ====== */
@@ -2579,13 +2577,12 @@ function pesqCardHTML(it){
     <div class="img">${img}</div>
     <div class="cod" title="${esc(codTitle)}">${esc(cod)}</div>
     <div class="name">${esc(marcaModelo || 'Modelo não informado')}</div>
-    <div class="peso">${fmtNum(it.peso,3)} kg</div>
+    <div class="peso" style="display:flex;align-items:center;gap:8px;">${flagHTML}<span>${fmtNum(it.peso,3)} kg</span></div>
     <div class="foot">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         ${precoHTML}${discTag}
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
-        ${flagHTML}
         <span class="cart" aria-hidden="true" data-add-cart="${esc(it.ref)}">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
         </span>
@@ -3695,7 +3692,6 @@ document.addEventListener('DOMContentLoaded', () => {
   novoImgCapture.addEventListener('click', capturarNovaFoto);
   novoImgCancel.addEventListener('click', closeNovoCamera);
   document.addEventListener('keydown', e => { if(e.key === 'Escape' && novoImgOverlay.classList.contains('open')){ closeNovoCamera(); } });
-  /* Atualiza bandeira grande do país no "Novo" quando muda o select */
   if (novoPais && novoPaisFlag){
     novoPais.addEventListener('change', () => { novoPaisFlag.src = flagUrl(novoPais.value, 80); });
   }
