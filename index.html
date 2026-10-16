@@ -1189,6 +1189,27 @@
           <label for="novoModelo">Modelo</label>
           <input type="text" id="novoModelo" autocomplete="off" placeholder="Ex.: PALIO 1.5">
         </div>
+        <!-- NOVO: Campo de País de Origem -->
+        <div class="field">
+          <label for="novoPais">País de Origem</label>
+          <select id="novoPais">
+            <option value="BR" selected>Brasil 🇧🇷</option>
+            <option value="US">Estados Unidos 🇺🇸</option>
+            <option value="DE">Alemanha 🇩🇪</option>
+            <option value="JP">Japão 🇯🇵</option>
+            <option value="FR">França 🇫🇷</option>
+            <option value="IT">Itália 🇮🇹</option>
+            <option value="AR">Argentina 🇦🇷</option>
+            <option value="CN">China 🇨🇳</option>
+            <option value="KR">Coreia do Sul 🇰🇷</option>
+            <option value="MX">México 🇲🇽</option>
+            <option value="ES">Espanha 🇪🇸</option>
+            <option value="GB">Reino Unido 🇬🇧</option>
+            <option value="SE">Suécia 🇸🇪</option>
+            <option value="PL">Polônia 🇵🇱</option>
+            <option value="IN">Índia 🇮🇳</option>
+          </select>
+        </div>
       </div>
       <div class="field">
         <label for="novoCod">Códigos separados (por ";")</label>
@@ -1801,7 +1822,8 @@ for(const line of RAW.split('\n')){
     peso4: parseFloat(p[17]) || 0,
     pd4: parseFloat(p[18]) || 0,
     pt4: parseFloat(p[19]) || 0,
-    rh4: parseFloat(p[20]) || 0
+    rh4: parseFloat(p[20]) || 0,
+    pais: 'BR' /* NOVO: Padrão Brasil para itens antigos */
   });
 }
 
@@ -1811,7 +1833,10 @@ try {
     const parsed = JSON.parse(storedCat);
     if (Array.isArray(parsed) && parsed.length) {
       DATA.length = 0;
-      for (const p of parsed) DATA.push(p);
+      for (const p of parsed) {
+        if (!p.pais) p.pais = 'BR'; /* NOVO: Garante BR em itens antigos */
+        DATA.push(p);
+      }
     }
   } else {
     localStorage.setItem('paizao_catalisadores', JSON.stringify(DATA));
@@ -1833,6 +1858,16 @@ try{
   const saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
   if(saved && typeof saved === 'object') CFG = { ...DEFAULT_CFG, ...saved };
 }catch(e){}
+
+/* =========================================================
+   NOVO: MAPA DE PAÍSES E BANDEIRAS
+   ========================================================= */
+const PAISES = {
+  'BR': '🇧🇷', 'US': '🇺🇸', 'DE': '🇩🇪', 'JP': '🇯🇵', 'FR': '🇫🇷',
+  'IT': '🇮🇹', 'AR': '🇦🇷', 'CN': '🇨🇳', 'KR': '🇰🇷', 'MX': '🇲🇽',
+  'ES': '🇪🇸', 'GB': '🇬🇧', 'SE': '🇸🇪', 'PL': '🇵🇱', 'IN': '🇮🇳'
+};
+/* ========================================================= */
 
 function somaPedras(it){
   return {
@@ -2147,6 +2182,13 @@ function openEditModal(item){
   window.__editingOrig = orig;
   if (window.__resetEditFoto) { try { window.__resetEditFoto(); } catch(_){} }
 
+  // Gera as opções de país dinamicamente
+  const paisAtual = orig.pais || 'BR';
+  let opcoesPais = '';
+  for (const [cod, flag] of Object.entries(PAISES)) {
+    opcoesPais += `<option value="${cod}" ${paisAtual === cod ? 'selected' : ''}>${flag} ${cod}</option>`;
+  }
+
   document.getElementById('modal').innerHTML = `
     <div class="modal-head">
       <div style="flex:1">
@@ -2169,6 +2211,11 @@ function openEditModal(item){
         </div>
         <div class="field"><label>Marca</label><input id="edMarca" value="${esc(orig.marca)}"></div>
         <div class="field"><label>Modelo</label><input id="edModelo" value="${esc(orig.modelo)}"></div>
+        <!-- NOVO: Campo de País no modal de edição -->
+        <div class="field">
+          <label>País de Origem</label>
+          <select id="edPais">${opcoesPais}</select>
+        </div>
       </div>
       <div class="field"><label>Códigos (separados por ";")</label>
         <input id="edCod" value="${esc((orig.cod||[]).join(';'))}">
@@ -2203,7 +2250,6 @@ function openEditModal(item){
         <div class="field"><label>Teor Rh 4 (g/kg)</label><input type="number" step="0.001" min="0" id="edRh4" value="${orig.rh4||0}"></div>
       </div>
 
-      <!-- NOVO: Bloco de captura de imagem igual ao da aba Novo -->
       <div class="field" style="margin-top:16px">
         <label>Imagem da peça</label>
         <div class="selfie-box">
@@ -2283,7 +2329,8 @@ function saveEdit(original){
     peso4:  n('edPeso4'),
     pd4:    n('edPd4'),
     pt4:    n('edPt4'),
-    rh4:    n('edRh4')
+    rh4:    n('edRh4'),
+    pais:   document.getElementById('edPais') ? document.getElementById('edPais').value : (original.pais || 'BR') /* NOVO */
   };
   if (antigo.img !== novoImg) DATA[idx].storagePath = '';
   try { localStorage.setItem('paizao_catalisadores', JSON.stringify(DATA)); } catch(e){}
@@ -2497,13 +2544,21 @@ function pesqCardHTML(it){
   const discTag = disc > 0
     ? ` <span class="stones-badge" style="background:#dcfce7;border-color:#86efac;color:#166534">-${Math.round(disc*100)}%</span>`
     : '';
+  
+  // NOVO: Bandeira do País
+  const paisCod = it.pais || 'BR';
+  const paisFlag = PAISES[paisCod] || '🇧🇷';
+  const flagHTML = `<span class="flag" title="${paisCod}" style="font-size:16px; line-height:1; margin-left:6px;">${paisFlag}</span>`;
+
   return `<article class="pesq-card" data-ref="${esc(it.ref)}">
     <div class="img">${img}</div>
     <div class="cod" title="${esc(codTitle)}">${esc(cod)}</div>
     <div class="name">${esc(marcaModelo || 'Modelo não informado')}</div>
     <div class="peso">${fmtNum(it.peso,3)} kg</div>
     <div class="foot">
-      ${precoHTML}${discTag}
+      <div style="display:flex; align-items:center;">
+        ${precoHTML}${discTag}${flagHTML}
+      </div>
       <span class="cart" aria-hidden="true" data-add-cart="${esc(it.ref)}">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
       </span>
@@ -2717,7 +2772,8 @@ async function syncSheet(){
         peso2: iKg2 >= 0 ? num(rw[iKg2]) : 0,
         pd2:   iPd2 >= 0 ? num(rw[iPd2]) : 0,
         pt2:   iPt2 >= 0 ? num(rw[iPt2]) : 0,
-        rh2:   iRh2 >= 0 ? num(rw[iRh2]) : 0
+        rh2:   iRh2 >= 0 ? num(rw[iRh2]) : 0,
+        pais: 'BR' /* NOVO: Padrão Brasil */
       });
     }
     if(!novos.length) throw new Error('Nenhuma peça válida encontrada.');
@@ -2765,8 +2821,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
 <script>
 /* =========================================================
-   NOVO: Sistema de captura de imagem para o modal EDitar
-   (espelha o mesmo comportamento da aba "Novo")
+   SISTEMA DE CAPTURA DE IMAGEM PARA O MODAL EDITAR
    ========================================================= */
 (function editImgSystem(){
   'use strict';
@@ -2800,12 +2855,9 @@ document.getElementById('btnCota').addEventListener('click', () => {
     if(rem){ rem.classList.add('hidden'); }
   };
 
-  /* --- Delegação de eventos (o modal é recriado a cada abertura) --- */
   document.addEventListener('click', function(e){
     if(e.target.closest('#edImgRemove')){ setEdPreview(''); return; }
-
     if(e.target.closest('#edFotoBtn')){ openEdCamera(); return; }
-
     if(e.target.closest('#edArquivoBtn')){
       const fi = $id('edFileInput');
       if(fi) fi.click();
@@ -2838,7 +2890,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
     }
   });
 
-  /* --- Câmera --- */
   let edStream = null;
 
   async function openEdCamera(){
@@ -4422,6 +4473,9 @@ document.getElementById('btnCota').addEventListener('click', () => {
     novoPd4.value    = '';
     novoPt4.value    = '';
     novoRh4.value    = '';
+    // NOVO: Reseta o país para Brasil
+    const novoPais = $('novoPais');
+    if (novoPais) novoPais.value = 'BR';
     setPreview('');
     updateRefHint();
   }
@@ -4471,6 +4525,10 @@ document.getElementById('btnCota').addEventListener('click', () => {
 
     const fotoB64 = fotoData;
 
+    // NOVO: Captura o valor do país
+    const novoPaisSelect = $('novoPais');
+    const paisSelecionado = novoPaisSelect ? novoPaisSelect.value : 'BR';
+
     const novo = {
       ref:    String(refFinal),
       img:    imgValue,
@@ -4493,7 +4551,8 @@ document.getElementById('btnCota').addEventListener('click', () => {
       peso4:  num(novoPeso4.value),
       pd4:    num(novoPd4.value),
       pt4:    num(novoPt4.value),
-      rh4:    num(novoRh4.value)
+      rh4:    num(novoRh4.value),
+      pais:   paisSelecionado // NOVO
     };
 
     DATA.push(novo);
