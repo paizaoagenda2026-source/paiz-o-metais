@@ -2096,9 +2096,8 @@ function openModal(item, applyDiscount){
     const v = (n || 0) * dFactor;
     return v > 0 ? 'R$ ' + fmtNum(v, 2) : '—';
   };
-  const discBadge = disc > 0
-    ? ` <span class="stones-badge" style="background:#dcfce7;border-color:#86efac;color:#166534">-${Math.round(disc*100)}%</span>`
-    : '';
+  /* ALTERAÇÃO SOLICITADA: ocultar somente a porcentagem de desconto */
+  const discBadge = '';
   const cods = (orig.cod||[]).map(x => `<span class="code-chip">${esc(x)}</span>`).join('');
   const linha = (nome, teor, valorUn, valorPeca) => teor > 0 ? `
     <tr><td>${nome}</td><td>${fmtNum(teor,3)}</td><td>${fmtNum(valorUn,0)}</td><td>${fmtNum(valorPeca * dFactor,2)}</td></tr>` : '';
@@ -2565,9 +2564,8 @@ function pesqCardHTML(it){
   const precoHTML = precoFinal > 0
     ? `<span class="price">R$ ${fmtNum(precoFinal,2)}</span>`
     : `<span class="price muted">—</span>`;
-  const discTag = disc > 0
-    ? ` <span class="stones-badge" style="background:#dcfce7;border-color:#86efac;color:#166534">-${Math.round(disc*100)}%</span>`
-    : '';
+  /* ALTERAÇÃO SOLICITADA: ocultar somente a porcentagem de desconto */
+  const discTag = '';
 
   /* ====== BANDEIRA DO PAÍS (imagem, funciona em qualquer SO) ====== */
   const paisCod = it.pais || 'BR';
