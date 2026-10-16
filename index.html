@@ -34,12 +34,6 @@
     'paizao_catalisadores','paizao_compra_venda_po'
   ];
 
-  /* =========================================================
-     MAPA DE ESPELHAMENTO — cada chave do storage é replicada
-     em uma coleção "visível" no Firestore, com um documento
-     por item. Assim, tudo que você cadastra aparece no console
-     do Firebase, organizado e legível.
-     ========================================================= */
   var MIRROR_MAP = {
     'paizao_catalisadores'  : 'produtos_visivel',
     'paizao_clientes'       : 'clientes_visivel',
@@ -71,7 +65,6 @@
     keyLocks[key] = next; return next;
   }
 
-  /* ---------- Sanitiza um item antes de espelhar ---------- */
   function sanitizeItem(item){
     if (item === null || item === undefined) return item;
     if (typeof item !== 'object') return item;
@@ -85,8 +78,6 @@
       if (!Object.prototype.hasOwnProperty.call(item, k)) continue;
       var v = item[k];
       if (typeof v === 'string' && v.length > 9000){
-        /* Substitui strings gigantes (base64 de imagens) por marcador
-           para respeitar o limite de 1 MB por documento do Firestore */
         out[k] = '[texto/imagem longo — ' + v.length + ' caracteres]';
         out[k + '_truncado'] = true;
       } else if (v && typeof v === 'object'){
@@ -98,7 +89,6 @@
     return out;
   }
 
-  /* ---------- Espelha uma coleção inteira no Firestore ---------- */
   async function mirrorCollection(key, rawValue){
     var mirrorName = MIRROR_MAP[key];
     if (!mirrorName) return;
@@ -111,7 +101,6 @@
 
     var col = db.collection(mirrorName);
 
-    /* Monta lista de itens (array ou objeto) */
     var items = [];
     if (Array.isArray(parsed)){
       items = parsed;
@@ -132,14 +121,12 @@
 
     var newCount = items.length;
 
-    /* Lê os documentos atuais para saber quantos remover */
     var existing;
     try { existing = await col.get(); }
     catch(e){ console.warn('[FB] mirror read(' + mirrorName + '):', e.message); return; }
 
     var oldCount = existing.size;
 
-    /* Monta operações (set para cada item, delete para excedentes) */
     var ops = [];
     for (var idx = 0; idx < newCount; idx++){
       var docId = 'item_' + String(idx).padStart(6, '0');
@@ -149,11 +136,6 @@
       data._syncedAt = firebase.firestore.FieldValue.serverTimestamp();
       ops.push({ tipo: 'set', id: docId, data: data });
     }
-    /* Delega a limpeza de excedentes para um campo determinístico:
-       como usamos IDs sequenciais, qualquer doc com índice >= newCount
-       precisa ser removido. Como existing.size pode não corresponder
-       exatamente ao número de IDs sequenciais (por versões antigas),
-       varremos pelos docs lidos. */
     existing.forEach(function(doc){
       var m = /^item_(\d+)$/.exec(doc.id);
       if (!m) { ops.push({ tipo: 'delete', ref: doc.ref }); return; }
@@ -162,7 +144,6 @@
         ops.push({ tipo: 'delete', ref: doc.ref });
       }
     });
-    /* Também garante remoção por índice sequencial faltante */
     for (var j = newCount; j < oldCount; j++){
       var did = 'item_' + String(j).padStart(6, '0');
       ops.push({ tipo: 'delete', id: did });
@@ -170,7 +151,6 @@
 
     if (!ops.length) return;
 
-    /* Executa em lotes de 450 (limite seguro do batch é 500) */
     var BATCH_LIMIT = 450;
     for (var oi = 0; oi < ops.length; oi += BATCH_LIMIT){
       var batch = db.batch();
@@ -227,7 +207,6 @@
           });
           chunkCountCache[key] = total;
         }
-        /* Espelha a coleção "visível" no Firestore (1 doc por item) */
         if (MIRROR_MAP[key]){
           try { await mirrorCollection(key, value); }
           catch(e){ console.warn('[FB] mirror(' + key + '):', e.message); }
@@ -375,8 +354,6 @@
         if (lv !== null) await saveKey(sk, lv).catch(function(){});
       }
 
-      /* Garante que TODAS as coleções espelho existam, mesmo para
-         dados já existentes no Firestore antes desta versão. */
       for (var m = 0; m < SYNC_KEYS.length; m++){
         var mk = SYNC_KEYS[m];
         if (!MIRROR_MAP[mk]) continue;
@@ -717,10 +694,12 @@
     border-radius:12px;overflow:hidden;margin-bottom:14px}
   .face-video-wrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
   #novoImgOverlay .face-video-wrap video{transform:none !important}
+  #edImgOverlay .face-video-wrap video{transform:none !important}
   .face-guide{position:absolute;inset:0;pointer-events:none;display:grid;place-items:center}
   .face-guide::before{content:"";width:58%;aspect-ratio:3/4;
     border:2px dashed rgba(255,255,255,.55);border-radius:50%}
   #novoImgOverlay .face-guide::before{width:82%;aspect-ratio:4/3;border-radius:12px;}
+  #edImgOverlay .face-guide::before{width:82%;aspect-ratio:4/3;border-radius:12px;}
   .face-status{font-size:13.5px;font-weight:600;color:#0f2338;margin-bottom:12px;min-height:20px}
   .face-progress{display:flex;justify-content:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
   .face-progress .step{font-size:11.5px;font-weight:700;padding:5px 11px;
@@ -776,6 +755,8 @@
   #view-novo .form-body .field{margin-bottom:14px}
   #view-novo .selfie-box{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   #novoImgPreview{width:170px;height:130px;border-radius:12px;object-fit:cover;
+    border:2px solid var(--line);display:none;background:#f4f6f9}
+  #edImgPreview{width:170px;height:130px;border-radius:12px;object-fit:cover;
     border:2px solid var(--line);display:none;background:#f4f6f9}
   #view-novo .form-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
   #view-novo .grid2 > .field{margin-bottom:0}
@@ -873,7 +854,6 @@
     border-radius: 12px;
     box-shadow: 0 24px 70px rgba(0,0,0,0.5);
   }
-  /* ====== ABA COMPRA/VENDA PÓ ====== */
   #view-compravendapo .form-body{padding:18px}
   #view-compravendapo .form-body .field{margin-bottom:14px}
   #view-compravendapo .grid-cv{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
@@ -889,7 +869,6 @@
     letter-spacing:.4px;padding:3px 10px;border-radius:20px;text-transform:uppercase}
   #view-compravendapo .cv-badge.COMPRA{background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe}
   #view-compravendapo .cv-badge.VENDA{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
-  /* ====== NOVO: DASHBOARDS COMPRA/VENDA/LUCRO ====== */
   #view-compravendapo .cv-dashboards{
     display:grid;
     grid-template-columns:repeat(3,1fr);
@@ -1076,6 +1055,23 @@
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
       <button type="button" class="login-btn face" id="novoImgCaptureBtn" style="max-width:200px;margin-top:0">📸 Capturar</button>
       <button type="button" class="login-btn face-cancel" id="novoImgCancelBtn">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOVO: Overlay de câmera para o modal de edição -->
+<div class="face-overlay" id="edImgOverlay">
+  <div class="face-card">
+    <h2>Foto da Peça</h2>
+    <p>Posicione a peça no centro do quadro e clique em Capturar.</p>
+    <div class="face-video-wrap">
+      <video id="edImgVideo" autoplay muted playsinline></video>
+      <div class="face-guide"></div>
+    </div>
+    <div class="face-status" id="edImgStatus">Iniciando câmera...</div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button type="button" class="login-btn face" id="edImgCaptureBtn" style="max-width:200px;margin-top:0">📸 Capturar</button>
+      <button type="button" class="login-btn face-cancel" id="edImgCancelBtn">Cancelar</button>
     </div>
   </div>
 </div>
@@ -1290,7 +1286,6 @@
   </section>
 </main>
 
-<!-- ====== ABA COMPRA/VENDA PÓ ====== -->
 <main class="wrap hidden" id="view-compravendapo">
   <section class="panel">
     <div class="panel-head">
@@ -1400,7 +1395,6 @@
     </div>
   </section>
 </main>
-<!-- ========================================= -->
 
 <main class="wrap" id="view-pesquisa">
   <div class="pesq-container">
@@ -1904,7 +1898,6 @@ const fmtNum = (n, d=2) => Number(n).toLocaleString('pt-BR',{minimumFractionDigi
 const fmtTeor = n => (n ? fmtNum(n,3) : '—');
 const fmtMoney = n => n > 0 ? 'R$ ' + fmtNum(n,2) : '—';
 
-/* ===== DESCONTO POR TIPO DE USUÁRIO (aplicado na aba Pesquisa) ===== */
 function getDiscountForUser(){
   const t = String(window.currentUserType || '').toUpperCase();
   if (t === 'AGREGADO')  return 0.10;
@@ -1912,7 +1905,6 @@ function getDiscountForUser(){
   if (t === 'CLIENTE')   return 0.20;
   return 0;
 }
-/* ================================================================== */
 
 const esc = s => String(s ?? '')
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
@@ -1948,9 +1940,6 @@ function thumbHTML(img, size){
   </div>`;
 }
 
-/* =========================================================
-   ORDENAÇÃO PADRÃO: MARCA / MODELO EM ORDEM ALFABÉTICA (A → Z)
-   ========================================================= */
 const state = { q:'', marca:'', sortKey:'marca', sortDir:'asc' };
 
 function getFiltered(){
@@ -2072,7 +2061,6 @@ function openModal(item, applyDiscount){
   const linha = (nome, teor, valorUn, valorPeca) => teor > 0 ? `
     <tr><td>${nome}</td><td>${fmtNum(teor,3)}</td><td>${fmtNum(valorUn,0)}</td><td>${fmtNum(valorPeca * dFactor,2)}</td></tr>` : '';
 
-  /* Detalhe de cada pedra (1 a 4) */
   let detalhePedras = '';
   if (duas){
     let rows = '';
@@ -2145,6 +2133,7 @@ function closeModal(){
   const m = document.getElementById('modal');
   if(m) m.classList.remove('fullscreen');
   document.body.style.overflow = '';
+  if (window.__resetEditFoto) { try { window.__resetEditFoto(); } catch(_){} }
 }
 document.getElementById('overlay').addEventListener('click', e => {
   if(e.target.id === 'overlay') closeModal();
@@ -2156,6 +2145,8 @@ document.addEventListener('keydown', e => {
 function openEditModal(item){
   const orig = item._orig || item;
   window.__editingOrig = orig;
+  if (window.__resetEditFoto) { try { window.__resetEditFoto(); } catch(_){} }
+
   document.getElementById('modal').innerHTML = `
     <div class="modal-head">
       <div style="flex:1">
@@ -2171,7 +2162,11 @@ function openEditModal(item){
     <div class="modal-body">
       <div class="grid2">
         <div class="field"><label>Referência interna</label><input id="edRef" value="${esc(orig.ref)}"></div>
-        <div class="field"><label>ID da imagem (Drive)</label><input id="edImg" value="${esc(orig.img)}"></div>
+        <div class="field">
+          <label>ID da imagem (Drive)</label>
+          <input id="edImg" value="${esc(orig.img)}" placeholder="Ex.: 1AbC..." autocomplete="off" spellcheck="false">
+          <div class="hint">Se você capturar ou escolher uma imagem abaixo, ela substitui este ID.</div>
+        </div>
         <div class="field"><label>Marca</label><input id="edMarca" value="${esc(orig.marca)}"></div>
         <div class="field"><label>Modelo</label><input id="edModelo" value="${esc(orig.modelo)}"></div>
       </div>
@@ -2207,6 +2202,25 @@ function openEditModal(item){
         <div class="field"><label>Teor Pt 4 (g/kg)</label><input type="number" step="0.001" min="0" id="edPt4" value="${orig.pt4||0}"></div>
         <div class="field"><label>Teor Rh 4 (g/kg)</label><input type="number" step="0.001" min="0" id="edRh4" value="${orig.rh4||0}"></div>
       </div>
+
+      <!-- NOVO: Bloco de captura de imagem igual ao da aba Novo -->
+      <div class="field" style="margin-top:16px">
+        <label>Imagem da peça</label>
+        <div class="selfie-box">
+          <button type="button" class="btn" id="edFotoBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Tirar Foto
+          </button>
+          <button type="button" class="btn" id="edArquivoBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Buscar no PC
+          </button>
+          <input type="file" id="edFileInput" accept="image/*" style="display:none">
+          <img id="edImgPreview" alt="Pré-visualização da imagem da peça">
+          <button type="button" class="btn hidden" id="edImgRemove">Remover imagem</button>
+        </div>
+      </div>
+
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">
         <button type="button" class="btn" id="edCancel" onclick="closeModal()">Cancelar</button>
         <button type="button" class="btn primary" id="edSave" onclick="saveEdit(window.__editingOrig)">Salvar alterações</button>
@@ -2229,7 +2243,19 @@ function saveEdit(original){
   const cod = v('edCod').split(';').map(s => s.trim()).filter(Boolean);
 
   const antigo = DATA[idx];
-  const novoImg = v('edImg');
+
+  /* ==== NOVO: prioriza a imagem capturada/selecionada no modal ==== */
+  let novoImg = v('edImg');
+  let precisaUpload = false;
+  let fotoB64 = '';
+  if (window.__editingFotoData) {
+    novoImg = window.__editingFotoData;
+    if (novoImg.indexOf('data:') === 0 && window.__fbUploadImage) {
+      precisaUpload = true;
+      fotoB64 = novoImg;
+    }
+  }
+  /* ============================================================== */
 
   if (antigo && antigo.storagePath && antigo.img !== novoImg && window.__fbDeleteImage){
     try { window.__fbDeleteImage(antigo.storagePath); } catch(_){}
@@ -2265,7 +2291,27 @@ function saveEdit(original){
   refreshMarcaOptions();
   render();
   renderPesq();
+  if (window.__resetEditFoto) { try { window.__resetEditFoto(); } catch(_){} }
   closeModal();
+
+  /* ==== NOVO: faz o upload em background se a imagem for base64 ==== */
+  if (precisaUpload && fotoB64) {
+    const refStr = String(DATA[idx].ref);
+    window.__fbUploadImage(fotoB64, 'catalisadores').then(function(up){
+      if (!up || !up.ok) return;
+      for (let i = 0; i < DATA.length; i++) {
+        if (String(DATA[i].ref) === refStr && DATA[i].img === fotoB64) {
+          DATA[i].img = up.url;
+          DATA[i].storagePath = up.path || '';
+          try { localStorage.setItem('paizao_catalisadores', JSON.stringify(DATA)); } catch(e){}
+          try { render(); } catch(_){}
+          try { renderPesq(); } catch(_){}
+          break;
+        }
+      }
+    }).catch(function(e){ console.warn('[FB] foto upload bg:', e && e.message); });
+  }
+  /* ================================================================ */
 }
 
 function refreshMarcaOptions(){
@@ -2379,9 +2425,6 @@ document.querySelectorAll('.tab').forEach(btn => {
   });
 });
 
-/* =========================================================
-   BUSCA COM DEBOUNCE (reduz renderizações desnecessárias)
-   ========================================================= */
 const qInput = document.getElementById('q');
 const searchBox = document.getElementById('searchBox');
 let qTimer = null;
@@ -2418,9 +2461,6 @@ document.getElementById('btnCotacao').addEventListener('click', () => {
   window.open('https://www.kitco.com/price/precious-metals', '_blank', 'noopener');
 });
 
-/* =========================================================
-   ABA PESQUISA
-   ========================================================= */
 const pesqState = { q:'', marca:'', page:1, perPage:12 };
 
 function pesqFiltered(){
@@ -2556,7 +2596,6 @@ function renderPesq(){
   renderPesqPagination(all.length, pesqState.page, totalPages);
 }
 
-/* Pesquisa com debounce */
 let pesqTimer = null;
 document.getElementById('pesqQ').addEventListener('input', e => {
   const v = e.target.value;
@@ -2721,6 +2760,159 @@ document.getElementById('btnCota').addEventListener('click', () => {
   renderCotacoes();
   render();
   renderPesq();
+})();
+</script>
+
+<script>
+/* =========================================================
+   NOVO: Sistema de captura de imagem para o modal EDitar
+   (espelha o mesmo comportamento da aba "Novo")
+   ========================================================= */
+(function editImgSystem(){
+  'use strict';
+
+  window.__editingFotoData = '';
+
+  function $id(id){ return document.getElementById(id); }
+
+  function setEdPreview(dataUrl){
+    window.__editingFotoData = dataUrl || '';
+    const prev = $id('edImgPreview');
+    const rem  = $id('edImgRemove');
+    if(!prev || !rem) return;
+    if(window.__editingFotoData){
+      prev.src = window.__editingFotoData;
+      prev.style.display = 'block';
+      rem.classList.remove('hidden');
+    } else {
+      prev.removeAttribute('src');
+      prev.style.display = 'none';
+      rem.classList.add('hidden');
+    }
+  }
+
+  window.__setEdPreview = setEdPreview;
+  window.__resetEditFoto = function(){
+    window.__editingFotoData = '';
+    const prev = $id('edImgPreview');
+    const rem  = $id('edImgRemove');
+    if(prev){ prev.removeAttribute('src'); prev.style.display = 'none'; }
+    if(rem){ rem.classList.add('hidden'); }
+  };
+
+  /* --- Delegação de eventos (o modal é recriado a cada abertura) --- */
+  document.addEventListener('click', function(e){
+    if(e.target.closest('#edImgRemove')){ setEdPreview(''); return; }
+
+    if(e.target.closest('#edFotoBtn')){ openEdCamera(); return; }
+
+    if(e.target.closest('#edArquivoBtn')){
+      const fi = $id('edFileInput');
+      if(fi) fi.click();
+      return;
+    }
+  });
+
+  document.addEventListener('change', function(e){
+    if(e.target && e.target.id === 'edFileInput'){
+      const file = e.target.files && e.target.files[0];
+      if(!file){ return; }
+      if(!file.type.startsWith('image/')){
+        alert('Escolha um arquivo de imagem.');
+        e.target.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = async ev => {
+        try {
+          let dataUrl = ev.target.result;
+          if (window.__fbCompress) {
+            try { dataUrl = await window.__fbCompress(dataUrl, 1200, 0.75); } catch(_){}
+          }
+          setEdPreview(dataUrl);
+        } catch(_){ alert('Não foi possível ler a imagem.'); }
+      };
+      reader.onerror = () => alert('Falha ao ler o arquivo.');
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    }
+  });
+
+  /* --- Câmera --- */
+  let edStream = null;
+
+  async function openEdCamera(){
+    const overlay = $id('edImgOverlay');
+    const video   = $id('edImgVideo');
+    const status  = $id('edImgStatus');
+    if(!overlay || !video || !status) return;
+
+    overlay.classList.add('open');
+    status.textContent = 'Solicitando acesso à câmera...';
+    try {
+      edStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: 640, height: 480 },
+        audio: false
+      });
+      video.srcObject = edStream;
+      try { await video.play(); } catch(_){}
+      status.textContent = 'Posicione a peça e clique em Capturar.';
+    } catch(err){
+      try {
+        edStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: 640, height: 480 },
+          audio: false
+        });
+        video.srcObject = edStream;
+        try { await video.play(); } catch(_){}
+        status.textContent = 'Posicione a peça e clique em Capturar.';
+      } catch(err2){
+        status.textContent = 'Não foi possível acessar a câmera. Verifique as permissões.';
+      }
+    }
+  }
+
+  function closeEdCamera(){
+    const overlay = $id('edImgOverlay');
+    const video   = $id('edImgVideo');
+    if(edStream){
+      try { edStream.getTracks().forEach(t => t.stop()); } catch(_){}
+      edStream = null;
+    }
+    try { if(video) video.srcObject = null; } catch(_){}
+    if(overlay) overlay.classList.remove('open');
+  }
+
+  async function captureEdPhoto(){
+    const video  = $id('edImgVideo');
+    const status = $id('edImgStatus');
+    if(!edStream){ alert('Câmera não está ativa.'); return; }
+    const w = video.videoWidth || 640;
+    const h = video.videoHeight || 480;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, w, h);
+    let dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    if (window.__fbCompress) {
+      try { dataUrl = await window.__fbCompress(dataUrl, 1200, 0.75); } catch(_){}
+    }
+    setEdPreview(dataUrl);
+    closeEdCamera();
+    if(status) status.textContent = 'Foto capturada.';
+  }
+
+  document.addEventListener('click', function(e){
+    if(e.target.closest('#edImgCaptureBtn')){ captureEdPhoto(); }
+    else if(e.target.closest('#edImgCancelBtn')){ closeEdCamera(); }
+  });
+
+  document.addEventListener('keydown', function(e){
+    const overlay = $id('edImgOverlay');
+    if(e.key === 'Escape' && overlay && overlay.classList.contains('open')){
+      closeEdCamera();
+    }
+  });
 })();
 </script>
 
@@ -3943,8 +4135,7 @@ document.getElementById('btnCota').addEventListener('click', () => {
           U[userKey].selfie = up.url;
           U[userKey].selfieStoragePath = up.path || '';
           if (window.saveUsers) { try { window.saveUsers(); } catch(_){} }
-          try { render(); } catch(_){}
-        }
+          try { render(); } catch(_){} }
         if (existing.selfieStoragePath && existing.selfieStoragePath !== up.path){
           if (window.__fbDeleteImage) { try { window.__fbDeleteImage(existing.selfieStoragePath); } catch(_){} }
         }
@@ -4400,9 +4591,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 </script>
 
 <script>
-/* =========================================================
-   ABA COMPRA/VENDA PÓ
-   ========================================================= */
 (function compraVendaPoSystem(){
   'use strict';
 
@@ -5789,9 +5977,6 @@ document.getElementById('btnCota').addEventListener('click', () => {
 </script>
 
 <script>
-/* =========================================================
-   SERVICE WORKER — registro
-   ========================================================= */
 (function registerSW(){
   if (!('serviceWorker' in navigator)) return;
   if (location.protocol === 'file:') return;
