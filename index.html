@@ -1173,23 +1173,7 @@
         <label for="novoPais" style="color:#15803d;font-weight:700;font-size:13px;">🌎 País de Origem da Peça</label>
         <div class="flag-select-wrap">
           <img id="novoPaisFlag" class="flag-preview" src="https://flagcdn.com/w80/br.png" alt="Bandeira">
-          <select id="novoPais">
-            <option value="BR" selected>Brasil</option>
-            <option value="US">Estados Unidos</option>
-            <option value="DE">Alemanha</option>
-            <option value="JP">Japão</option>
-            <option value="FR">França</option>
-            <option value="IT">Itália</option>
-            <option value="AR">Argentina</option>
-            <option value="CN">China</option>
-            <option value="KR">Coreia do Sul</option>
-            <option value="MX">México</option>
-            <option value="ES">Espanha</option>
-            <option value="GB">Reino Unido</option>
-            <option value="SE">Suécia</option>
-            <option value="PL">Polônia</option>
-            <option value="IN">Índia</option>
-          </select>
+          <select id="novoPais"></select>
         </div>
         <div class="hint">Selecione o país de origem — a bandeira aparecerá no card da pesquisa.</div>
       </div>
@@ -1775,24 +1759,201 @@ const SHEET_CSV_URL = "COLE_AQUI";
 const RAW = ``;
 
 /* =========================================================
-   MAPA DE PAÍSES (código ISO → nome em português)
+   MAPA DE PAÍSES (código ISO → nome em português) — TODOS OS PAÍSES
    ========================================================= */
 const PAISES = {
-  'BR': 'Brasil',
-  'US': 'Estados Unidos',
+  'AF': 'Afeganistão',
+  'ZA': 'África do Sul',
+  'AL': 'Albânia',
   'DE': 'Alemanha',
-  'JP': 'Japão',
-  'FR': 'França',
-  'IT': 'Itália',
+  'AD': 'Andorra',
+  'AO': 'Angola',
+  'AG': 'Antígua e Barbuda',
+  'SA': 'Arábia Saudita',
+  'DZ': 'Argélia',
   'AR': 'Argentina',
+  'AM': 'Armênia',
+  'AU': 'Austrália',
+  'AT': 'Áustria',
+  'AZ': 'Azerbaijão',
+  'BS': 'Bahamas',
+  'BD': 'Bangladesh',
+  'BB': 'Barbados',
+  'BH': 'Bahrein',
+  'BE': 'Bélgica',
+  'BZ': 'Belize',
+  'BJ': 'Benin',
+  'BY': 'Belarus',
+  'BO': 'Bolívia',
+  'BA': 'Bósnia e Herzegovina',
+  'BW': 'Botsuana',
+  'BR': 'Brasil',
+  'BN': 'Brunei',
+  'BG': 'Bulgária',
+  'BF': 'Burkina Faso',
+  'BI': 'Burundi',
+  'BT': 'Butão',
+  'CV': 'Cabo Verde',
+  'CM': 'Camarões',
+  'KH': 'Camboja',
+  'CA': 'Canadá',
+  'QA': 'Catar',
+  'KZ': 'Cazaquistão',
+  'TD': 'Chade',
+  'CL': 'Chile',
   'CN': 'China',
+  'CY': 'Chipre',
+  'CO': 'Colômbia',
+  'KM': 'Comores',
+  'CG': 'Congo',
+  'CD': 'Congo (Rep. Dem.)',
+  'KP': 'Coreia do Norte',
   'KR': 'Coreia do Sul',
-  'MX': 'México',
+  'CI': 'Costa do Marfim',
+  'CR': 'Costa Rica',
+  'HR': 'Croácia',
+  'CU': 'Cuba',
+  'DK': 'Dinamarca',
+  'DJ': 'Djibuti',
+  'DM': 'Dominica',
+  'EG': 'Egito',
+  'SV': 'El Salvador',
+  'AE': 'Emirados Árabes Unidos',
+  'EC': 'Equador',
+  'ER': 'Eritreia',
+  'SK': 'Eslováquia',
+  'SI': 'Eslovênia',
   'ES': 'Espanha',
-  'GB': 'Reino Unido',
-  'SE': 'Suécia',
+  'US': 'Estados Unidos',
+  'EE': 'Estônia',
+  'ET': 'Etiópia',
+  'FJ': 'Fiji',
+  'PH': 'Filipinas',
+  'FI': 'Finlândia',
+  'FR': 'França',
+  'GA': 'Gabão',
+  'GM': 'Gâmbia',
+  'GH': 'Gana',
+  'GE': 'Geórgia',
+  'GD': 'Granada',
+  'GR': 'Grécia',
+  'GT': 'Guatemala',
+  'GY': 'Guiana',
+  'GN': 'Guiné',
+  'GW': 'Guiné-Bissau',
+  'GQ': 'Guiné Equatorial',
+  'HT': 'Haiti',
+  'HN': 'Honduras',
+  'HU': 'Hungria',
+  'YE': 'Iêmen',
+  'IN': 'Índia',
+  'ID': 'Indonésia',
+  'IQ': 'Iraque',
+  'IR': 'Irã',
+  'IE': 'Irlanda',
+  'IS': 'Islândia',
+  'IL': 'Israel',
+  'IT': 'Itália',
+  'JM': 'Jamaica',
+  'JP': 'Japão',
+  'JO': 'Jordânia',
+  'KW': 'Kuwait',
+  'LA': 'Laos',
+  'LS': 'Lesoto',
+  'LV': 'Letônia',
+  'LB': 'Líbano',
+  'LR': 'Libéria',
+  'LY': 'Líbia',
+  'LI': 'Liechtenstein',
+  'LT': 'Lituânia',
+  'LU': 'Luxemburgo',
+  'MK': 'Macedônia do Norte',
+  'MG': 'Madagascar',
+  'MY': 'Malásia',
+  'MW': 'Malávi',
+  'MV': 'Maldivas',
+  'ML': 'Mali',
+  'MT': 'Malta',
+  'MA': 'Marrocos',
+  'MH': 'Marshall',
+  'MU': 'Maurício',
+  'MR': 'Mauritânia',
+  'MX': 'México',
+  'FM': 'Micronésia',
+  'MZ': 'Moçambique',
+  'MD': 'Moldávia',
+  'MC': 'Mônaco',
+  'MN': 'Mongólia',
+  'ME': 'Montenegro',
+  'NA': 'Namíbia',
+  'NR': 'Nauru',
+  'NP': 'Nepal',
+  'NI': 'Nicarágua',
+  'NE': 'Níger',
+  'NG': 'Nigéria',
+  'NO': 'Noruega',
+  'NZ': 'Nova Zelândia',
+  'OM': 'Omã',
+  'NL': 'Países Baixos',
+  'PW': 'Palau',
+  'PA': 'Panamá',
+  'PG': 'Papua Nova Guiné',
+  'PK': 'Paquistão',
+  'PY': 'Paraguai',
+  'PE': 'Peru',
   'PL': 'Polônia',
-  'IN': 'Índia'
+  'PT': 'Portugal',
+  'KE': 'Quênia',
+  'KG': 'Quirguistão',
+  'KI': 'Quiribáti',
+  'GB': 'Reino Unido',
+  'CF': 'Rep. Centro-Africana',
+  'CZ': 'Rep. Tcheca',
+  'DO': 'Rep. Dominicana',
+  'RO': 'Romênia',
+  'RW': 'Ruanda',
+  'RU': 'Rússia',
+  'WS': 'Samoa',
+  'SM': 'San Marino',
+  'LC': 'Santa Lúcia',
+  'KN': 'São Cristóvão e Nevis',
+  'ST': 'São Tomé e Príncipe',
+  'VC': 'São Vicente e Granadinas',
+  'SC': 'Seicheles',
+  'SN': 'Senegal',
+  'SL': 'Serra Leoa',
+  'RS': 'Sérvia',
+  'SG': 'Singapura',
+  'SY': 'Síria',
+  'SO': 'Somália',
+  'LK': 'Sri Lanka',
+  'SZ': 'Suazilândia',
+  'SD': 'Sudão',
+  'SS': 'Sudão do Sul',
+  'SE': 'Suécia',
+  'CH': 'Suíça',
+  'SR': 'Suriname',
+  'TH': 'Tailândia',
+  'TZ': 'Tanzânia',
+  'TJ': 'Tadjiquistão',
+  'TL': 'Timor-Leste',
+  'TG': 'Togo',
+  'TO': 'Tonga',
+  'TT': 'Trinidad e Tobago',
+  'TN': 'Tunísia',
+  'TM': 'Turcomenistão',
+  'TR': 'Turquia',
+  'TV': 'Tuvalu',
+  'UA': 'Ucrânia',
+  'UG': 'Uganda',
+  'UY': 'Uruguai',
+  'UZ': 'Uzbequistão',
+  'VU': 'Vanuatu',
+  'VA': 'Vaticano',
+  'VE': 'Venezuela',
+  'VN': 'Vietnã',
+  'ZM': 'Zâmbia',
+  'ZW': 'Zimbábue'
 };
 
 /* Retorna a URL da imagem da bandeira (flagcdn.com — funciona em todos os sistemas) */
@@ -1804,6 +1965,26 @@ function flagUrl(codigo, tamanho){
 /* Retorna o nome do país */
 function paisNome(codigo){
   return PAISES[codigo] || 'Brasil';
+}
+
+/* Lista ordenada alfabeticamente (pt-BR) para popular selects */
+const PAISES_ORDENADOS = Object.keys(PAISES).map(cod => ({ cod, nome: PAISES[cod] }))
+  .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+/* Preenche os selects de país (novo) após o DOM */
+function popularSelectPais(){
+  const sel = document.getElementById('novoPais');
+  if (!sel) return;
+  if (sel.options.length > 0 && sel.dataset.populated === '1') return;
+  sel.innerHTML = '';
+  for (const p of PAISES_ORDENADOS){
+    const opt = document.createElement('option');
+    opt.value = p.cod;
+    opt.textContent = p.nome;
+    sel.appendChild(opt);
+  }
+  sel.value = 'BR';
+  sel.dataset.populated = '1';
 }
 
 const DATA = [];
@@ -2193,8 +2374,8 @@ function openEditModal(item){
 
   const paisAtual = orig.pais || 'BR';
   let opcoesPais = '';
-  for (const [cod, nome] of Object.entries(PAISES)) {
-    opcoesPais += `<option value="${cod}" ${paisAtual === cod ? 'selected' : ''}>${nome}</option>`;
+  for (const p of PAISES_ORDENADOS) {
+    opcoesPais += `<option value="${p.cod}" ${paisAtual === p.cod ? 'selected' : ''}>${p.nome}</option>`;
   }
 
   document.getElementById('modal').innerHTML = `
@@ -2828,16 +3009,19 @@ document.getElementById('btnCota').addEventListener('click', () => {
   } else alert('Valores inválidos. Use números separados por vírgula.');
 });
 
-/* Atualiza a bandeira do país no "Novo" quando o usuário troca o select */
+/* Popula o select "País" da aba Novo e mantém a bandeira sincronizada */
 document.addEventListener('DOMContentLoaded', () => {
+  popularSelectPais();
   const sel = document.getElementById('novoPais');
   const img = document.getElementById('novoPaisFlag');
   if (sel && img) {
+    img.src = flagUrl(sel.value || 'BR', 80);
     sel.addEventListener('change', () => { img.src = flagUrl(sel.value, 80); });
   }
 });
 
 (function init(){
+  popularSelectPais();
   refreshMarcaOptions();
   document.getElementById('tabCount').textContent = DATA.length;
   renderCotacoes();
