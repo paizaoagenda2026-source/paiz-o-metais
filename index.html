@@ -1494,19 +1494,19 @@
         <button class="row-edit" data-edit-params title="Editar parâmetros">✎</button>
         <div class="sym">GERAL</div><div class="nm">Conversão &amp; Câmbio</div>
         <div class="kv"><span>1 kg em onça troy (ozt)</span><span id="pOzt">32,1507</span></div>
-        <div class="kv"><span>Dólar (R$/US$)</span><span id="pDolar">4,25</span></div>
+        <div class="kv"><span>Dólar (R$/US$)</span><span id="pDolar">5,00</span></div>
       </div>
       <div class="metal-card">
         <button class="row-edit" data-edit-params title="Editar parâmetros">✎</button>
         <div class="sym">RENDIMENTO</div><div class="nm">Payability por metal</div>
-        <div class="kv"><span>Paládio (Pd)</span><span id="pPayPd">97,9%</span></div>
-        <div class="kv"><span>Platina (Pt)</span><span id="pPayPt">97,9%</span></div>
-        <div class="kv"><span>Ródio (Rh)</span><span id="pPayRh">84,9%</span></div>
+        <div class="kv"><span>Paládio (Pd)</span><span id="pPayPd">100,0%</span></div>
+        <div class="kv"><span>Platina (Pt)</span><span id="pPayPt">100,0%</span></div>
+        <div class="kv"><span>Ródio (Rh)</span><span id="pPayRh">100,0%</span></div>
       </div>
       <div class="metal-card">
         <button class="row-edit" data-edit-params title="Editar parâmetros">✎</button>
         <div class="sym">CUSTOS</div><div class="nm">Operação</div>
-        <div class="kv"><span>Custo operacional</span><span id="pCusto">R$ 12,00 /kg</span></div>
+        <div class="kv"><span>Custo operacional</span><span id="pCusto">R$ 0,00 /kg</span></div>
         <div class="kv"><span>Fórmula</span><span>Teor × Cotação × Rend.</span></div>
       </div>
     </div>
@@ -2045,9 +2045,9 @@ try {
    ========================================================= */
 const OZT_KG = 32.1507;
 const DEFAULT_CFG = {
-  pd: 1287, pt: 962, rh: 5250, dolar: 4.25,
-  payPd: 97.9, payPt: 97.9, payRh: 84.9,
-  custoKg: 12
+  pd: 1102, pt: 1639, rh: 8500, dolar: 5.00,
+  payPd: 100, payPt: 100, payRh: 100,
+  custoKg: 0
 };
 let CFG = { ...DEFAULT_CFG };
 const LS_KEY = 'paizao_catalisador_cfg';
