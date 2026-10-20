@@ -1706,7 +1706,7 @@
 </main>
 
 <main class="wrap hidden" id="view-carrinho">
-  <section class="panel">
+  <section class="panel" id="cartClientDataSection"> <!-- ID ADICIONADO AQUI -->
     <div class="panel-head"><h2>Dados do Cliente</h2><span class="sub">Preencha o CPF para autopreencher</span></div>
     <div class="form-body">
       <div class="grid2">
@@ -2789,6 +2789,16 @@ document.querySelectorAll('.tab').forEach(btn => {
     if(vaud) vaud.classList.toggle('hidden', t !== 'auditoria');
     const vcart = document.getElementById('view-carrinho');
     if(vcart) vcart.classList.toggle('hidden', t !== 'carrinho');
+    
+    // Lógica para ocultar "Dados do Cliente" no carrinho se não for ADM
+    if (t === 'carrinho') {
+      const cartClientData = document.getElementById('cartClientDataSection');
+      if (cartClientData) {
+        const isAdm = (typeof window.isADMUser === 'function' && window.isADMUser());
+        cartClientData.style.display = isAdm ? '' : 'none';
+      }
+    }
+
     const vhist = document.getElementById('view-historicocompra');
     if(vhist) vhist.classList.toggle('hidden', t !== 'historicocompra');
   });
@@ -3380,6 +3390,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.overflow = '';
     addLogoutButton(user, acc);
     applyPermissions(user);
+    
+    // Atualiza a visibilidade da seção "Dados do Cliente" no Carrinho ao logar
+    const cartClientData = document.getElementById('cartClientDataSection');
+    if (cartClientData) {
+      const isAdm = (typeof window.isADMUser === 'function' && window.isADMUser());
+      cartClientData.style.display = isAdm ? '' : 'none';
+    }
+
     try { if (typeof renderPesq === 'function') renderPesq(); } catch(_){}
     showToast(`Bem-vindo, ${user} · ${acc.label || acc.type || ''}`);
     if (window.auditLog) { try { window.auditLog('LOGIN', 'Entrou no sistema — ' + (acc.label || acc.type || '')); } catch(_){} }
