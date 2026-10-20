@@ -1221,7 +1221,7 @@
           <div class="field"><label for="novoRh4">Teor Rh 4 (g/kg)</label><input type="number" step="0.001" min="0" id="novoRh4"></div>
         </div>
       </div>
-      <div class="field" style="margin-top:16px">
+      <div class="field" id="novoFotoSection" style="margin-top:16px;display:none">
         <label>Imagem da peça</label>
         <div class="selfie-box">
           <button type="button" class="btn" id="novoFotoBtn">
@@ -2478,11 +2478,31 @@ function openEditModal(item){
   window.__editingOrig = orig;
   if (window.__resetEditFoto) { try { window.__resetEditFoto(); } catch(_){} }
 
+  const isAdmUser = (typeof window.isADMUser === 'function' && window.isADMUser());
+
   const paisAtual = orig.pais || 'BR';
   let opcoesPais = '';
   for (const p of PAISES_ORDENADOS) {
     opcoesPais += `<option value="${p.cod}" ${paisAtual === p.cod ? 'selected' : ''}>${p.nome}</option>`;
   }
+
+  const fotoFieldHTML = isAdmUser ? `
+      <div class="field" style="margin-top:16px">
+        <label>Imagem da peça</label>
+        <div class="selfie-box">
+          <button type="button" class="btn" id="edFotoBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Tirar Foto
+          </button>
+          <button type="button" class="btn" id="edArquivoBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Buscar no PC
+          </button>
+          <input type="file" id="edFileInput" accept="image/*" style="display:none">
+          <img id="edImgPreview" alt="Pré-visualização da imagem da peça">
+          <button type="button" class="btn hidden" id="edImgRemove">Remover imagem</button>
+        </div>
+      </div>` : '';
 
   document.getElementById('modal').innerHTML = `
     <div class="modal-head">
@@ -2551,24 +2571,7 @@ function openEditModal(item){
         <div class="field"><label>Teor Pt 4 (g/kg)</label><input type="number" step="0.001" min="0" id="edPt4" value="${orig.pt4||0}"></div>
         <div class="field"><label>Teor Rh 4 (g/kg)</label><input type="number" step="0.001" min="0" id="edRh4" value="${orig.rh4||0}"></div>
       </div>
-
-      <div class="field" style="margin-top:16px">
-        <label>Imagem da peça</label>
-        <div class="selfie-box">
-          <button type="button" class="btn" id="edFotoBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            Tirar Foto
-          </button>
-          <button type="button" class="btn" id="edArquivoBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Buscar no PC
-          </button>
-          <input type="file" id="edFileInput" accept="image/*" style="display:none">
-          <img id="edImgPreview" alt="Pré-visualização da imagem da peça">
-          <button type="button" class="btn hidden" id="edImgRemove">Remover imagem</button>
-        </div>
-      </div>
-
+      ${fotoFieldHTML}
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">
         <button type="button" class="btn" id="edCancel" onclick="closeModal()">Cancelar</button>
         <button type="button" class="btn primary" id="edSave" onclick="saveEdit(window.__editingOrig)">Salvar alterações</button>
@@ -2601,7 +2604,8 @@ function saveEdit(original){
 
   const antigo = DATA[idx];
 
-  let novoImg = v('edImg');
+  const edImgEl = document.getElementById('edImg');
+  let novoImg = edImgEl ? edImgEl.value.trim() : (antigo.img || '');
   let precisaUpload = false;
   let fotoB64 = '';
   if (window.__editingFotoData) {
@@ -2771,6 +2775,10 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.getElementById('view-cadastro').classList.toggle('hidden', t !== 'cadastro');
     const vnovo = document.getElementById('view-novo');
     if(vnovo) vnovo.classList.toggle('hidden', t !== 'novo');
+    if (t === 'novo') {
+      const fotoSec = document.getElementById('novoFotoSection');
+      if (fotoSec) fotoSec.style.display = (typeof window.isADMUser === 'function' && window.isADMUser()) ? '' : 'none';
+    }
     const vpo = document.getElementById('view-po');
     if(vpo) vpo.classList.toggle('hidden', t !== 'po');
     const vcv = document.getElementById('view-compravendapo');
@@ -3138,6 +3146,38 @@ document.addEventListener('DOMContentLoaded', () => {
   renderCotacoes();
   render();
   renderPesq();
+})();
+</script>
+
+<script>
+(function authHelpers(){
+  'use strict';
+  window.isADMUser = function(){
+    if (!window.currentUser) return false;
+    if (window.currentUser === 'PROGRAMADOR') return true;
+    return String(window.currentUserType || '').toUpperCase() === 'ADM';
+  };
+  window.requireAuthPassword = function(actionLabel){
+    if (!window.currentUser) {
+      alert('Você precisa estar logado para realizar esta ação.');
+      return false;
+    }
+    const USERS = window.USERS || {};
+    const acc = USERS[window.currentUser];
+    if (!acc) {
+      alert('Usuário logado não encontrado no sistema.');
+      return false;
+    }
+    const pwd = prompt('🔒 ' + actionLabel + '\n\nDigite sua senha (' + window.currentUser + ') para confirmar:');
+    if (pwd === null) return false;
+    if (String(pwd) !== String(acc.pass)) {
+      alert('❌ Senha incorreta. Ação cancelada.');
+      if (window.auditLog) { try { window.auditLog('SENHA_INCORRETA', actionLabel + ' · ' + window.currentUser); } catch(_){ } }
+      return false;
+    }
+    if (window.auditLog) { try { window.auditLog('SENHA_CONFIRMADA', actionLabel + ' · ' + window.currentUser); } catch(_){ } }
+    return true;
+  };
 })();
 </script>
 
@@ -4175,10 +4215,10 @@ document.addEventListener('DOMContentLoaded', () => {
       </tr>`;
     });
     cvTbody.innerHTML = html;
-    cvTbody.querySelectorAll('[data-cv-pdf]').forEach(btn => { btn.addEventListener('click', e => { e.stopPropagation(); openCvPDF(parseInt(btn.dataset.cvPdf, 10)); }); });
-    cvTbody.querySelectorAll('[data-cv-auth]').forEach(btn => { btn.addEventListener('click', e => { e.stopPropagation(); autorizarCv(parseInt(btn.dataset.cvAuth, 10)); }); });
+    cvTbody.querySelectorAll('[data-cv-pdf]').forEach(btn => { btn.addEventListener('click', e => { e.stopPropagation(); if (!window.requireAuthPassword('Gerar PDF do lançamento')) return; openCvPDF(parseInt(btn.dataset.cvPdf, 10)); }); });
+    cvTbody.querySelectorAll('[data-cv-auth]').forEach(btn => { btn.addEventListener('click', e => { e.stopPropagation(); if (!window.requireAuthPassword('Autorizar lançamento')) return; autorizarCv(parseInt(btn.dataset.cvAuth, 10)); }); });
     cvTbody.querySelectorAll('[data-cv-edit]').forEach(btn => { btn.addEventListener('click', e => { e.stopPropagation(); startEdit(parseInt(btn.dataset.cvEdit, 10)); }); });
-    cvTbody.querySelectorAll('[data-cv-del]').forEach(btn => { btn.addEventListener('click', e => { e.stopPropagation(); excluir(parseInt(btn.dataset.cvDel, 10)); }); });
+    cvTbody.querySelectorAll('[data-cv-del]').forEach(btn => { btn.addEventListener('click', e => { e.stopPropagation(); if (!window.requireAuthPassword('Excluir lançamento')) return; excluir(parseInt(btn.dataset.cvDel, 10)); }); });
   }
   function openCvPDF(indexOrObj){
     const r = typeof indexOrObj === 'number' ? registros[indexOrObj] : indexOrObj;
@@ -4586,14 +4626,15 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
       </tr>`;
     }).join('');
-    pedidosTbody.querySelectorAll('[data-pedido-pdf]').forEach(btn => { btn.addEventListener('click', (e) => { e.stopPropagation(); openPedidoPDF(btn.dataset.pedidoPdf); }); });
-    pedidosTbody.querySelectorAll('[data-pedido-auth]').forEach(btn => { btn.addEventListener('click', (e) => { e.stopPropagation(); autorizarPedidoSalvo(btn.dataset.pedidoAuth); }); });
+    pedidosTbody.querySelectorAll('[data-pedido-pdf]').forEach(btn => { btn.addEventListener('click', (e) => { e.stopPropagation(); if (!window.requireAuthPassword('Abrir PDF do pedido')) return; openPedidoPDF(btn.dataset.pedidoPdf); }); });
+    pedidosTbody.querySelectorAll('[data-pedido-auth]').forEach(btn => { btn.addEventListener('click', (e) => { e.stopPropagation(); if (!window.requireAuthPassword('Autorizar pedido')) return; autorizarPedidoSalvo(btn.dataset.pedidoAuth); }); });
     pedidosTbody.querySelectorAll('[data-pedido-del]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (!podeVerPedidoPDF()) { alert('Você não tem permissão para excluir pedidos.'); return; }
+        if (!window.requireAuthPassword('Excluir pedido')) return;
         const numero = btn.dataset.pedidoDel;
         if (!confirm('Excluir o pedido ' + numero + '?\n\nO PDF correspondente também será removido.')) return;
-        if (!podeVerPedidoPDF()) { alert('Você não tem permissão para excluir pedidos.'); return; }
         const idx = pedidosSalvos.findIndex(p => p.numero === numero);
         if (idx >= 0) { pedidosSalvos.splice(idx, 1); savePedidos(); if (window.auditLog) { try { window.auditLog('PEDIDO_EXCLUIDO', 'Pedido ' + numero); } catch(_){} } renderPedidos(); }
       });
@@ -4830,6 +4871,7 @@ document.addEventListener('DOMContentLoaded', () => {
     histTbody.querySelectorAll('[data-hist-pdf]').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
+        if (!window.requireAuthPassword('Abrir PDF do histórico')) return;
         const h = historico[parseInt(btn.dataset.histPdf, 10)];
         if (!h) return;
         if (h._tipoRegistro === 'cv_po') {
@@ -4849,6 +4891,7 @@ document.addEventListener('DOMContentLoaded', () => {
     histTbody.querySelectorAll('[data-hist-del]').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
+        if (!window.requireAuthPassword('Excluir do histórico')) return;
         if (!confirm('Excluir este registro do histórico?')) return;
         historico.splice(parseInt(btn.dataset.histDel, 10), 1);
         localStorage.setItem(LS_KEY_HIST, JSON.stringify(historico));
