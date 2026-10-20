@@ -1733,7 +1733,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Gerar PDF
       </button>
-      <button class="btn primary" id="cartAuthBtn" style="margin-left:10px; background:#0f9d58;">✅ Autorizado</button>
     </div>
     <div class="cart-filter">
       <div class="field"><label for="cartFilterNome">Pesquisar por Nome</label><input type="text" id="cartFilterNome" placeholder="Nome do cliente…"></div>
@@ -4213,9 +4212,10 @@ document.addEventListener('DOMContentLoaded', () => {
     y += 7; doc.setFont('helvetica', 'bold'); doc.text('Data:', margin, y);
     doc.setFont('helvetica', 'normal'); doc.text(fmtDateBR(r.data), margin + 18, y);
 
+    y += 7; doc.setFont('helvetica', 'bold'); doc.text('PIX:', margin, y);
+    doc.setFont('helvetica', 'normal'); doc.text(String(r.pix || '—'), margin + 18, y);
+
     if (r.tipo === 'COMPRA') {
-      y += 7; doc.setFont('helvetica', 'bold'); doc.text('PIX:', margin, y);
-      doc.setFont('helvetica', 'normal'); doc.text(String(r.pix || '—'), margin + 18, y);
       y += 7; doc.setFont('helvetica', 'bold'); doc.text('Autorizado por:', margin, y);
       doc.setFont('helvetica', 'normal'); doc.text(String(r.autorizadoPor || window.currentUserNome || '—'), margin + 30, y);
     }
@@ -4444,7 +4444,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const cartFilterNome = $('cartFilterNome'), cartFilterFone = $('cartFilterFone');
   const cartFilterDataInicio = $('cartFilterDataInicio'), cartFilterDataFim = $('cartFilterDataFim');
   const cartFilterBtn = $('cartFilterBtn'), cartFilterLimparBtn = $('cartFilterLimparBtn'), cartPdfBtn = $('cartPdfBtn');
-  const cartAuthBtn = $('cartAuthBtn');
   const pedidosTbody = $('pedidosTbody'), pedidosEmpty = $('pedidosEmpty'), pedidosSub = $('pedidosSub');
   
   function escHtml(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
@@ -4504,12 +4503,13 @@ document.addEventListener('DOMContentLoaded', () => {
     doc.text('CPF: ' + (pedido.cpf || '-'), margin + 5, 60);
     doc.text('Telefone: ' + (pedido.fone || '-'), margin + 5, 67);
     doc.text('Endereço: ' + (pedido.end || '-'), margin + 5, 74);
+    doc.text('PIX: ' + (pedido.pix || '-'), margin + 5, 81);
     
     if (pedido.autorizadoPor) {
-        doc.text('Autorizado por: ' + pedido.autorizadoPor, margin + 5, 81);
+        doc.text('Autorizado por: ' + pedido.autorizadoPor, margin + 5, 88);
     }
     
-    let y = pedido.autorizadoPor ? 91 : 84;
+    let y = pedido.autorizadoPor ? 98 : 91;
     const colX = [margin + 2, margin + 32, margin + 62, margin + 92, margin + 110, margin + 150];
     const rowH = 7;
     doc.setFillColor(15, 35, 56); doc.rect(margin, y, usableW, 8, 'F');
@@ -4581,11 +4581,13 @@ document.addEventListener('DOMContentLoaded', () => {
         <td style="text-align:right;font-weight:700;color:#15803d">${fmtMoney(p.total||0)}</td>
         <td style="text-align:center">
           <button class="row-edit" data-pedido-pdf="${escHtml(p.numero)}" title="Abrir PDF" aria-label="Abrir PDF">📄</button>
+          <button class="row-edit" data-pedido-auth="${escHtml(p.numero)}" title="Autorizar Pedido" aria-label="Autorizar" style="background:#d1fae5;color:#065f46;border-color:#6ee7b7">✅</button>
           <button class="row-edit" data-pedido-del="${escHtml(p.numero)}" title="Excluir pedido" aria-label="Excluir" style="background:#fee2e2;color:#b91c1c;border-color:#fecaca">🗑</button>
         </td>
       </tr>`;
     }).join('');
     pedidosTbody.querySelectorAll('[data-pedido-pdf]').forEach(btn => { btn.addEventListener('click', (e) => { e.stopPropagation(); openPedidoPDF(btn.dataset.pedidoPdf); }); });
+    pedidosTbody.querySelectorAll('[data-pedido-auth]').forEach(btn => { btn.addEventListener('click', (e) => { e.stopPropagation(); autorizarPedidoSalvo(btn.dataset.pedidoAuth); }); });
     pedidosTbody.querySelectorAll('[data-pedido-del]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -4608,21 +4610,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     nome: cliente.nome, 
                     fone: cliente.fone || '',
                     cpf: cliente.cpf || '',
-                    end: cliente.end || ''
+                    end: cliente.end || '',
+                    pix: cliente.pix || ''
                 };
             }
         } catch(e){}
     }
     const userName = window.currentUserNome || window.currentUser;
-    if (!userName) return { nome: 'Usuário não logado', fone: '', cpf: '', end: '' };
+    if (!userName) return { nome: 'Usuário não logado', fone: '', cpf: '', end: '', pix: '' };
     try {
       const clientes = JSON.parse(localStorage.getItem('paizao_clientes') || '[]');
       if (Array.isArray(clientes)) {
         const cliente = clientes.find(c => c.nome && c.nome.toLowerCase() === userName.toLowerCase());
-        if (cliente) { return { nome: cliente.nome, fone: cliente.fone || '', cpf: cliente.cpf || '', end: cliente.end || '' }; }
+        if (cliente) { return { nome: cliente.nome, fone: cliente.fone || '', cpf: cliente.cpf || '', end: cliente.end || '', pix: cliente.pix || '' }; }
       }
     } catch(e) { }
-    return { nome: userName, fone: '', cpf: '', end: '' };
+    return { nome: userName, fone: '', cpf: '', end: '', pix: '' };
   }
   function updateCartUserInfo() { }
   window.recalculateCartPrices = function() {
@@ -4733,6 +4736,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pedido = {
       numero: numeroPedido, data: new Date().toISOString(), user: window.currentUser || '',
       userNome: userInfo.nome, fone: userInfo.fone, cpf: userInfo.cpf || '', end: userInfo.end || '',
+      pix: userInfo.pix || '',
       itens: filteredItems.map(i => ({ codigos: [...i.codigos], quantidade: i.quantidade, unitario: i.unitario, total: i.total })),
       total: totalGeral
     };
@@ -4750,42 +4754,27 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCart();
   }
   
-  function autorizarCarrinho() {
-    if (cartItems.length === 0) { alert('Carrinho vazio.'); return; }
-    if (!confirm('Autorizar este carrinho e mover para o Histórico de Compra?')) return;
+  function autorizarPedidoSalvo(numero) {
+    const pIdx = pedidosSalvos.findIndex(p => p.numero === numero);
+    if (pIdx < 0) return;
+    const pedido = pedidosSalvos[pIdx];
+    if (!confirm('Autorizar o pedido ' + numero + ' e mover para o Histórico de Compra?')) return;
 
-    const userInfo = getUserInfo();
-    let totalGeral = 0; cartItems.forEach(item => totalGeral += item.total || 0);
-    let numeroPedido; try { numeroPedido = gerarNumeroPedido(); } catch (e) { alert('Erro: ' + e.message); return; }
     const autorizador = window.currentUserNome || window.currentUser || 'SISTEMA';
-
-    const pedido = {
-      numero: numeroPedido, data: new Date().toISOString(), user: window.currentUser || '',
-      userNome: userInfo.nome, fone: userInfo.fone, cpf: userInfo.cpf || '', end: userInfo.end || '',
-      itens: cartItems.map(i => ({ codigos: [...i.codigos], quantidade: i.quantidade, unitario: i.unitario, total: i.total })),
-      total: totalGeral,
-      autorizadoPor: autorizador,
-      dataAutorizacao: new Date().toISOString(),
-      _tipoRegistro: 'carrinho'
-    };
-
-    try {
-      const blob = gerarPDFBlobFromPedido(pedido);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'pedido_' + numeroPedido + '.pdf';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    } catch(e){ console.warn('PDF error', e); }
+    pedido.autorizadoPor = autorizador;
+    pedido.dataAutorizacao = new Date().toISOString();
+    pedido._tipoRegistro = 'carrinho';
 
     let historico = [];
     try { historico = JSON.parse(localStorage.getItem('paizao_historico_compra') || '[]'); } catch(_){}
     historico.unshift(pedido);
     try { localStorage.setItem('paizao_historico_compra', JSON.stringify(historico)); } catch(_){}
 
-    cartItems.length = 0;
-    saveCart();
-    renderCart();
-    if (window.auditLog) window.auditLog('CARRINHO_AUTORIZADO', 'Pedido ' + numeroPedido + ' autorizado por ' + autorizador);
-    alert('Carrinho autorizado e movido para o Histórico de Compra!');
+    pedidosSalvos.splice(pIdx, 1);
+    savePedidos();
+    renderPedidos();
+    if (window.auditLog) window.auditLog('PEDIDO_AUTORIZADO', 'Pedido ' + numero + ' autorizado por ' + autorizador);
+    alert('Pedido autorizado e movido para o Histórico de Compra!');
     if (window.renderHistorico) window.renderHistorico();
   }
 
@@ -4795,7 +4784,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCart();
   });
   cartPdfBtn.addEventListener('click', gerarPDF);
-  cartAuthBtn.addEventListener('click', autorizarCarrinho);
   renderCart(); renderPedidos();
   window.updateCartUserInfo = updateCartUserInfo;
 })();
