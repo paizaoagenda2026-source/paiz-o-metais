@@ -30,7 +30,7 @@
   var SYNC_KEYS = [
     'paizao_usuarios','paizao_clientes','paizao_carrinho','paizao_pedidos',
     'paizao_pedido_counter','paizao_auditoria','paizao_catalisador_cfg',
-    'paizao_catalisadores','paizao_compra_venda_po'
+    'paizao_catalisadores','paizao_compra_venda_po','paizao_historico_compra'
   ];
   var MIRROR_MAP = {
     'paizao_catalisadores'  : 'produtos_visivel',
@@ -39,7 +39,8 @@
     'paizao_carrinho'       : 'carrinho_visivel',
     'paizao_pedidos'        : 'pedidos_visivel',
     'paizao_compra_venda_po': 'compra_venda_po_visivel',
-    'paizao_auditoria'      : 'auditoria_visivel'
+    'paizao_auditoria'      : 'auditoria_visivel',
+    'paizao_historico_compra': 'historico_compra_visivel'
   };
   if (typeof firebase === 'undefined' || !firebase.initializeApp){
     console.warn('[FB] SDK indisponível. App em modo local.'); return;
@@ -1085,12 +1086,13 @@
   <button class="tab" data-tab="novo">Novo</button>
   <button class="tab" data-tab="po">Pó</button>
   <button class="tab" data-tab="compravendapo">Compra/Venda Pó</button>
-  <button class="tab active" data-tab="pesquisa">Pesquisa</button>
+  <button class="tab" data-tab="pesquisa">Pesquisa</button>
   <button class="tab" data-tab="cadastro">Cadastro</button>
   <button class="tab" data-tab="cotacoes">Cotações &amp; Parâmetros</button>
   <button class="tab" data-tab="usuarios">Usuários</button>
   <button class="tab" data-tab="auditoria">Auditoria</button>
   <button class="tab" data-tab="carrinho" id="tabCarrinho">Carrinho</button>
+  <button class="tab" data-tab="historicocompra">Histórico Compra</button>
 </nav>
 
 <main class="wrap hidden" id="view-catalisador">
@@ -1284,15 +1286,66 @@
     <div class="form-body">
       <div class="grid-cv-top">
         <div class="field">
-          <label for="cvNome">Nome</label>
-          <input type="text" id="cvNome" placeholder="Nome do cliente / fornecedor" autocomplete="off">
+          <label for="cvCpf">CPF</label>
+          <input type="text" id="cvCpf" placeholder="000.000.000-00" autocomplete="off">
         </div>
         <div class="field">
-          <label for="cvFone">Fone</label>
-          <input type="text" id="cvFone" placeholder="Ex.: (11) 99999-9999" autocomplete="off">
+          <label for="cvNome">Nome completo</label>
+          <input type="text" id="cvNome" placeholder="Nome do cliente / fornecedor" autocomplete="off">
         </div>
       </div>
       <div class="grid-cv-top">
+        <div class="field">
+          <label for="cvFone">Fone (com DDD)</label>
+          <input type="text" id="cvFone" placeholder="Ex.: (11) 99999-9999" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="cvEnd">Endereço</label>
+          <input type="text" id="cvEnd" placeholder="Rua, número, complemento" autocomplete="off">
+        </div>
+      </div>
+      <div class="grid-cv-top">
+        <div class="field">
+          <label for="cvBairro">Bairro</label>
+          <input type="text" id="cvBairro" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="cvCidade">Cidade</label>
+          <input type="text" id="cvCidade" autocomplete="off">
+        </div>
+      </div>
+      <div class="grid-cv-top">
+        <div class="field">
+          <label for="cvUf">UF</label>
+          <input type="text" id="cvUf" maxlength="2" placeholder="SP" autocomplete="off" style="text-transform:uppercase">
+        </div>
+        <div class="field">
+          <label for="cvRg">RG</label>
+          <input type="text" id="cvRg" autocomplete="off">
+        </div>
+      </div>
+      <div class="grid-cv-top">
+        <div class="field">
+          <label for="cvBanco">Banco</label>
+          <input type="text" id="cvBanco" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="cvAgencia">Agência</label>
+          <input type="text" id="cvAgencia" autocomplete="off">
+        </div>
+      </div>
+      <div class="grid-cv-top">
+        <div class="field">
+          <label for="cvConta">Conta</label>
+          <input type="text" id="cvConta" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="cvPix">PIX</label>
+          <input type="text" id="cvPix" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="grid-cv-top" style="margin-top:14px; border-top: 1px dashed #e2e7ee; padding-top: 14px;">
         <div class="field">
           <label for="cvTipo">Tipo de operação</label>
           <select id="cvTipo">
@@ -1366,7 +1419,7 @@
             <th style="width:100px;text-align:right">Pt</th>
             <th style="width:100px;text-align:right">Rh</th>
             <th style="width:140px;text-align:right">R$</th>
-            <th style="width:180px;text-align:center">Ações</th>
+            <th style="width:220px;text-align:center">Ações</th>
           </tr>
         </thead>
         <tbody id="cvTbody"></tbody>
@@ -1554,6 +1607,7 @@
           <label><input type="checkbox" data-perm="usuarios"> Usuários</label>
           <label><input type="checkbox" data-perm="auditoria"> Auditoria</label>
           <label><input type="checkbox" data-perm="carrinho"> Carrinho</label>
+          <label><input type="checkbox" data-perm="historicocompra"> Histórico Compra</label>
         </div>
       </div>
       <div class="field">
@@ -1653,6 +1707,25 @@
 
 <main class="wrap hidden" id="view-carrinho">
   <section class="panel">
+    <div class="panel-head"><h2>Dados do Cliente</h2><span class="sub">Preencha o CPF para autopreencher</span></div>
+    <div class="form-body">
+      <div class="grid2">
+        <div class="field"><label for="cartCpf">CPF</label><input type="text" id="cartCpf" placeholder="000.000.000-00" autocomplete="off"></div>
+        <div class="field"><label for="cartNome">Nome completo</label><input type="text" id="cartNome" autocomplete="off"></div>
+        <div class="field"><label for="cartFone">Fone (com DDD)</label><input type="text" id="cartFone" autocomplete="off"></div>
+        <div class="field"><label for="cartEnd">Endereço</label><input type="text" id="cartEnd" autocomplete="off"></div>
+        <div class="field"><label for="cartBairro">Bairro</label><input type="text" id="cartBairro" autocomplete="off"></div>
+        <div class="field"><label for="cartCidade">Cidade</label><input type="text" id="cartCidade" autocomplete="off"></div>
+        <div class="field"><label for="cartUf">UF</label><input type="text" id="cartUf" maxlength="2" autocomplete="off" style="text-transform:uppercase"></div>
+        <div class="field"><label for="cartRg">RG</label><input type="text" id="cartRg" autocomplete="off"></div>
+        <div class="field"><label for="cartBanco">Banco</label><input type="text" id="cartBanco" autocomplete="off"></div>
+        <div class="field"><label for="cartAgencia">Agência</label><input type="text" id="cartAgencia" autocomplete="off"></div>
+        <div class="field"><label for="cartConta">Conta</label><input type="text" id="cartConta" autocomplete="off"></div>
+        <div class="field"><label for="cartPix">PIX</label><input type="text" id="cartPix" autocomplete="off"></div>
+      </div>
+    </div>
+  </section>
+  <section class="panel">
     <div class="panel-head">
       <h2>Carrinho de Compras</h2>
       <span class="sub" id="cartSub">Gerencie os itens adicionados</span>
@@ -1660,6 +1733,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Gerar PDF
       </button>
+      <button class="btn primary" id="cartAuthBtn" style="margin-left:10px; background:#0f9d58;">✅ Autorizado</button>
     </div>
     <div class="cart-filter">
       <div class="field"><label for="cartFilterNome">Pesquisar por Nome</label><input type="text" id="cartFilterNome" placeholder="Nome do cliente…"></div>
@@ -1721,6 +1795,35 @@
     </div>
     <div class="footnote">
       O acesso aos PDFs dos pedidos é restrito aos usuários <b>ADM</b>, <b>Programador</b>, <b>Triagem</b> e <b>Financeiro</b>.
+    </div>
+  </section>
+</main>
+
+<main class="wrap hidden" id="view-historicocompra">
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Histórico de Compras</h2>
+      <span class="sub" id="histCount">0 registros</span>
+    </div>
+    <div class="table-scroll">
+      <table style="min-width:1000px">
+        <thead>
+          <tr>
+            <th>Data / Hora</th>
+            <th>Tipo</th>
+            <th>Cliente / Ref</th>
+            <th style="text-align:right">Valor (R$)</th>
+            <th>Autorizado Por</th>
+            <th style="text-align:center;width:120px">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="histTbody"></tbody>
+      </table>
+    </div>
+    <div class="empty hidden" id="histEmpty">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <h3>Nenhum registro no histórico</h3>
+      <p>Autorize compras nas abas Compra/Venda Pó ou Carrinho.</p>
     </div>
   </section>
 </main>
@@ -2119,7 +2222,11 @@ const fmtTeor = n => (n ? fmtNum(n,3) : '—');
 const fmtMoney = n => n > 0 ? 'R$ ' + fmtNum(n,2) : '—';
 
 function getDiscountForUser(){
-  const t = String(window.currentUserType || '').toUpperCase();
+  let t = String(window.overrideUserType || window.currentUserType || '').toUpperCase();
+  const activeTab = document.querySelector('.tab.active')?.dataset.tab;
+  if ((activeTab === 'compravendapo' || activeTab === 'carrinho') && window.overrideUserType) {
+      t = String(window.overrideUserType).toUpperCase();
+  }
   if (t === 'AGREGADO')  return 0.10;
   if (t === 'AGREGADO2') return 0.30;
   if (t === 'CLIENTE')   return 0.20;
@@ -2656,6 +2763,9 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const t = btn.dataset.tab;
+    if (t !== 'compravendapo' && t !== 'carrinho') {
+        window.overrideUserType = '';
+    }
     document.getElementById('view-catalisador').classList.toggle('hidden', t !== 'catalisador');
     document.getElementById('view-cotacoes').classList.toggle('hidden', t !== 'cotacoes');
     document.getElementById('view-pesquisa').classList.toggle('hidden', t !== 'pesquisa');
@@ -2672,6 +2782,8 @@ document.querySelectorAll('.tab').forEach(btn => {
     if(vaud) vaud.classList.toggle('hidden', t !== 'auditoria');
     const vcart = document.getElementById('view-carrinho');
     if(vcart) vcart.classList.toggle('hidden', t !== 'carrinho');
+    const vhist = document.getElementById('view-historicocompra');
+    if(vhist) vhist.classList.toggle('hidden', t !== 'historicocompra');
   });
 });
 
@@ -3135,7 +3247,7 @@ document.addEventListener('DOMContentLoaded', () => {
 (function loginSystem(){
   'use strict';
   const LS_KEY_USERS = 'paizao_usuarios';
-  const ALL_TABS = ['catalisador','novo','po','compravendapo','pesquisa','cadastro','cotacoes','usuarios','auditoria','carrinho'];
+  const ALL_TABS = ['catalisador','novo','po','compravendapo','pesquisa','cadastro','cotacoes','usuarios','auditoria','carrinho','historicocompra'];
   const DEFAULT_SERGIO = { pass: '080888', role: 'admin', type: 'ADM', label: 'Administrador', permissions: ALL_TABS.slice(), selfie: '', nome: 'Sergio' };
   const DEFAULT_PROG = { pass: '080888', role: 'total', type: 'ADM', label: 'Acesso Total', permissions: ALL_TABS.slice(), selfie: '', nome: 'Programador' };
   let USERS = {};
@@ -3155,6 +3267,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(u.type === 'ADM' && Array.isArray(u.permissions) && !u.permissions.includes('auditoria')){ u.permissions.push('auditoria'); }
     if(u.type === 'ADM' && Array.isArray(u.permissions) && !u.permissions.includes('po')){ u.permissions.push('po'); }
     if(u.type === 'ADM' && Array.isArray(u.permissions) && !u.permissions.includes('compravendapo')){ u.permissions.push('compravendapo'); }
+    if(u.type === 'ADM' && Array.isArray(u.permissions) && !u.permissions.includes('historicocompra')){ u.permissions.push('historicocompra'); }
     if(!u.label) u.label = u.type;
     if(!('selfie' in u)) u.selfie = '';
     if(!('nome' in u)) u.nome = k;
@@ -3755,7 +3868,7 @@ document.addEventListener('DOMContentLoaded', () => {
   usrTipo.addEventListener('change', () => {
     const t = usrTipo.value;
     const defaults = {
-      ADM: ['catalisador','novo','po','compravendapo','pesquisa','cadastro','cotacoes','usuarios','auditoria','carrinho'],
+      ADM: ['catalisador','novo','po','compravendapo','pesquisa','cadastro','cotacoes','usuarios','auditoria','carrinho','historicocompra'],
       COMPRADOR: ['pesquisa', 'po', 'carrinho'], AGREGADO: ['pesquisa', 'po', 'carrinho'],
       AGREGADO2: ['pesquisa', 'po', 'carrinho'], CLIENTE: ['pesquisa', 'po', 'carrinho'],
       TRIAGEM: ['pesquisa', 'po', 'carrinho'], FINANCEIRO: ['pesquisa', 'po', 'carrinho']
@@ -3980,7 +4093,10 @@ document.addEventListener('DOMContentLoaded', () => {
   try { const saved = JSON.parse(localStorage.getItem(LS_KEY_CV) || '[]'); if (Array.isArray(saved)) registros = saved; } catch(e){ registros = []; }
   let editIndex = -1;
   const $ = id => document.getElementById(id);
-  const cvNome = $('cvNome'), cvFone = $('cvFone'), cvTipo = $('cvTipo'), cvData = $('cvData');
+  const cvCpf = $('cvCpf'), cvNome = $('cvNome'), cvFone = $('cvFone'), cvEnd = $('cvEnd'), cvBairro = $('cvBairro');
+  const cvCidade = $('cvCidade'), cvUf = $('cvUf'), cvRg = $('cvRg'), cvBanco = $('cvBanco'), cvAgencia = $('cvAgencia');
+  const cvConta = $('cvConta'), cvPix = $('cvPix');
+  const cvTipo = $('cvTipo'), cvData = $('cvData');
   const cvPeso = $('cvPeso'), cvPd = $('cvPd'), cvPt = $('cvPt'), cvRh = $('cvRh'), cvRs = $('cvRs');
   const cvSalvarBtn = $('cvSalvarBtn'), cvLimparBtn = $('cvLimparBtn'), cvCancelarBtn = $('cvCancelarBtn');
   const cvFormSub = $('cvFormSub'), cvTbody = $('cvTbody'), cvCount = $('cvCount'), cvEmpty = $('cvEmpty');
@@ -3989,7 +4105,16 @@ document.addEventListener('DOMContentLoaded', () => {
   function fmtMoneyLocal(n){ return 'R$ ' + Number(n || 0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2}); }
   function fmtDateBR(iso){ if(!iso) return '—'; const parts = String(iso).split('-'); if(parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0]; return iso; }
   function todayISO(){ const d = new Date(); const m = String(d.getMonth()+1).padStart(2,'0'); const day = String(d.getDate()).padStart(2,'0'); return d.getFullYear() + '-' + m + '-' + day; }
-  function calcVendaRs(){ const peso = parseFloat(cvPeso.value) || 0; const pd = parseFloat(cvPd.value) || 0; const pt = parseFloat(cvPt.value) || 0; const rh = parseFloat(cvRh.value) || 0; if (peso <= 0) return 0; const rskg = calcRskgFromTeores(pd, pt, rh); return rskg * peso; }
+  function calcVendaRs(){
+    const peso = parseFloat(cvPeso.value) || 0;
+    const pd = parseFloat(cvPd.value) || 0;
+    const pt = parseFloat(cvPt.value) || 0;
+    const rh = parseFloat(cvRh.value) || 0;
+    if (peso <= 0) return 0;
+    const rskg = calcRskgFromTeores(pd, pt, rh);
+    const disc = typeof getDiscountForUser === 'function' ? getDiscountForUser() : 0;
+    return rskg * peso * (1 - disc);
+  }
   function updateRsState(){
     if (cvTipo.value === 'VENDA'){ cvRs.readOnly = true; cvRs.classList.add('po-readonly'); const val = calcVendaRs(); cvRs.value = val.toFixed(2); }
     else { cvRs.readOnly = false; cvRs.classList.remove('po-readonly'); }
@@ -3997,7 +4122,10 @@ document.addEventListener('DOMContentLoaded', () => {
   [cvPeso, cvPd, cvPt, cvRh].forEach(el => { if (el) el.addEventListener('input', () => { if (cvTipo.value === 'VENDA') updateRsState(); }); });
   cvTipo.addEventListener('change', updateRsState);
   function clearFields(){
-    cvNome.value = ''; cvFone.value = ''; cvTipo.value = 'COMPRA'; cvData.value = todayISO();
+    cvCpf.value = ''; cvNome.value = ''; cvFone.value = ''; cvEnd.value = ''; cvBairro.value = '';
+    cvCidade.value = ''; cvUf.value = ''; cvRg.value = ''; cvBanco.value = ''; cvAgencia.value = '';
+    cvConta.value = ''; cvPix.value = '';
+    cvTipo.value = 'COMPRA'; cvData.value = todayISO();
     cvPeso.value = '0'; cvPd.value = '0'; cvPt.value = '0'; cvRh.value = '0'; cvRs.value = '0';
     editIndex = -1; cvCancelarBtn.classList.add('hidden');
     cvFormSub.textContent = 'Cadastre uma compra ou venda de pó'; updateRsState();
@@ -4041,6 +4169,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <td class="cv-money">${fmtMoneyLocal(r.rs)}</td>
         <td class="cv-actions">
           <button class="row-edit" data-cv-pdf="${i}" title="Gerar PDF" aria-label="PDF">📄</button>
+          <button class="row-edit" data-cv-auth="${i}" title="Autorizar e Salvar no Histórico" style="background:#d1fae5;color:#065f46;border-color:#6ee7b7">✅</button>
           <button class="row-edit" data-cv-edit="${i}" title="Editar" aria-label="Editar">✎</button>
           <button class="row-edit" data-cv-del="${i}" title="Excluir" aria-label="Excluir" style="background:#fee2e2;color:#b91c1c;border-color:#fecaca">🗑</button>
         </td>
@@ -4048,11 +4177,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     cvTbody.innerHTML = html;
     cvTbody.querySelectorAll('[data-cv-pdf]').forEach(btn => { btn.addEventListener('click', e => { e.stopPropagation(); openCvPDF(parseInt(btn.dataset.cvPdf, 10)); }); });
+    cvTbody.querySelectorAll('[data-cv-auth]').forEach(btn => { btn.addEventListener('click', e => { e.stopPropagation(); autorizarCv(parseInt(btn.dataset.cvAuth, 10)); }); });
     cvTbody.querySelectorAll('[data-cv-edit]').forEach(btn => { btn.addEventListener('click', e => { e.stopPropagation(); startEdit(parseInt(btn.dataset.cvEdit, 10)); }); });
     cvTbody.querySelectorAll('[data-cv-del]').forEach(btn => { btn.addEventListener('click', e => { e.stopPropagation(); excluir(parseInt(btn.dataset.cvDel, 10)); }); });
   }
-  function openCvPDF(index){
-    const r = registros[index]; if (!r) { alert('Registro não encontrado.'); return; }
+  function openCvPDF(indexOrObj){
+    const r = typeof indexOrObj === 'number' ? registros[indexOrObj] : indexOrObj;
+    if (!r) { alert('Registro não encontrado.'); return; }
     if (!window.jspdf || !window.jspdf.jsPDF) { alert('Biblioteca de PDF não carregada.'); return; }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -4073,10 +4204,22 @@ document.addEventListener('DOMContentLoaded', () => {
     doc.setTextColor(15, 35, 56); doc.setFontSize(11); doc.setFont('helvetica', 'bold');
     doc.text('Nome:', margin, y);
     doc.setFont('helvetica', 'normal'); doc.text(String(r.nome || '—'), margin + 18, y);
+    y += 7; doc.setFont('helvetica', 'bold'); doc.text('CPF:', margin, y);
+    doc.setFont('helvetica', 'normal'); doc.text(String(r.cpf || '—'), margin + 18, y);
     y += 7; doc.setFont('helvetica', 'bold'); doc.text('Fone:', margin, y);
     doc.setFont('helvetica', 'normal'); doc.text(String(r.fone || '—'), margin + 18, y);
+    y += 7; doc.setFont('helvetica', 'bold'); doc.text('Endereço:', margin, y);
+    doc.setFont('helvetica', 'normal'); doc.text(String(r.end || '—'), margin + 18, y);
     y += 7; doc.setFont('helvetica', 'bold'); doc.text('Data:', margin, y);
     doc.setFont('helvetica', 'normal'); doc.text(fmtDateBR(r.data), margin + 18, y);
+
+    if (r.tipo === 'COMPRA') {
+      y += 7; doc.setFont('helvetica', 'bold'); doc.text('PIX:', margin, y);
+      doc.setFont('helvetica', 'normal'); doc.text(String(r.pix || '—'), margin + 18, y);
+      y += 7; doc.setFont('helvetica', 'bold'); doc.text('Autorizado por:', margin, y);
+      doc.setFont('helvetica', 'normal'); doc.text(String(r.autorizadoPor || window.currentUserNome || '—'), margin + 30, y);
+    }
+
     y += 12; const rowH = 9;
     doc.setFillColor(15, 35, 56); doc.rect(margin, y, usableW, rowH, 'F');
     doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
@@ -4105,18 +4248,51 @@ document.addEventListener('DOMContentLoaded', () => {
     doc.text('Assinatura: ________________________________', margin, pageH - 30);
     doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(147, 162, 179);
     doc.text('Paizão Metais · Sistema de Consulta Técnica · Documento gerado em ' + new Date().toLocaleString('pt-BR'), pageW / 2, pageH - 10, { align: 'center' });
-    const fname = 'paizao_' + tipoLabel.toLowerCase() + '_po_' + String(r.data || '').replace(/\D/g,'') + '_' + (index+1) + '.pdf';
+    const fname = 'paizao_' + tipoLabel.toLowerCase() + '_po_' + String(r.data || '').replace(/\D/g,'') + '_' + (Math.floor(Math.random()*1000)) + '.pdf';
     doc.save(fname);
   }
+  window.__openCvPDFObject = openCvPDF;
+  function autorizarCv(i) {
+    const r = registros[i];
+    if (!r) return;
+    if (!confirm('Autorizar este lançamento e mover para o Histórico?')) return;
+
+    const autorizador = window.currentUserNome || window.currentUser || 'SISTEMA';
+    r.autorizadoPor = autorizador;
+    r.dataAutorizacao = new Date().toISOString();
+    r._tipoRegistro = 'cv_po';
+
+    try { openCvPDF(i); } catch(_){}
+
+    let historico = [];
+    try { historico = JSON.parse(localStorage.getItem('paizao_historico_compra') || '[]'); } catch(_){}
+    historico.unshift(r);
+    try { localStorage.setItem('paizao_historico_compra', JSON.stringify(historico)); } catch(_){}
+
+    registros.splice(i, 1);
+    saveRegistros();
+    render();
+    if (window.auditLog) window.auditLog('CV_PO_AUTORIZADO', 'Movido para histórico por ' + autorizador);
+    alert('Autorizado e movido para o Histórico de Compra!');
+    if (window.renderHistorico) window.renderHistorico();
+  }
   function salvar(){
-    const nome = cvNome.value.trim(); const fone = cvFone.value.trim(); const tipo = cvTipo.value;
+    const cpf = cvCpf.value.trim();
+    const nome = cvNome.value.trim(); const fone = cvFone.value.trim();
+    const end = cvEnd.value.trim(); const bairro = cvBairro.value.trim();
+    const cidade = cvCidade.value.trim(); const uf = cvUf.value.trim().toUpperCase();
+    const rg = cvRg.value.trim(); const banco = cvBanco.value.trim();
+    const agencia = cvAgencia.value.trim(); const conta = cvConta.value.trim(); const pix = cvPix.value.trim();
+
+    const tipo = cvTipo.value;
     const data = cvData.value || todayISO();
     const peso = parseFloat(cvPeso.value) || 0; const pd = parseFloat(cvPd.value) || 0;
     const pt = parseFloat(cvPt.value) || 0; const rh = parseFloat(cvRh.value) || 0;
     let rs = parseFloat(cvRs.value) || 0;
     if (peso <= 0) { alert('Informe o peso (maior que zero).'); cvPeso.focus(); return; }
     if (tipo === 'VENDA'){ rs = calcVendaRs(); }
-    const registro = { nome, fone, tipo, data, peso, pd, pt, rh, rs };
+    
+    const registro = { cpf, nome, fone, end, bairro, cidade, uf, rg, banco, agencia, conta, pix, tipo, data, peso, pd, pt, rh, rs };
     const isNovo = editIndex < 0;
     if (!isNovo) { registros[editIndex] = registro; } else { registros.push(registro); }
     saveRegistros();
@@ -4129,7 +4305,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function startEdit(i){
     const r = registros[i]; if (!r) return;
     editIndex = i;
-    cvNome.value = r.nome || ''; cvFone.value = r.fone || ''; cvTipo.value = r.tipo || 'COMPRA';
+    cvCpf.value = r.cpf || ''; cvNome.value = r.nome || ''; cvFone.value = r.fone || '';
+    cvEnd.value = r.end || ''; cvBairro.value = r.bairro || ''; cvCidade.value = r.cidade || '';
+    cvUf.value = r.uf || ''; cvRg.value = r.rg || ''; cvBanco.value = r.banco || '';
+    cvAgencia.value = r.agencia || ''; cvConta.value = r.conta || ''; cvPix.value = r.pix || '';
+    cvTipo.value = r.tipo || 'COMPRA';
     cvData.value = r.data || todayISO();
     cvPeso.value = r.peso; cvPd.value = r.pd; cvPt.value = r.pt; cvRh.value = r.rh; cvRs.value = r.rs;
     cvCancelarBtn.classList.remove('hidden'); cvFormSub.textContent = 'Editando registro #' + (i + 1);
@@ -4264,7 +4444,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const cartFilterNome = $('cartFilterNome'), cartFilterFone = $('cartFilterFone');
   const cartFilterDataInicio = $('cartFilterDataInicio'), cartFilterDataFim = $('cartFilterDataFim');
   const cartFilterBtn = $('cartFilterBtn'), cartFilterLimparBtn = $('cartFilterLimparBtn'), cartPdfBtn = $('cartPdfBtn');
+  const cartAuthBtn = $('cartAuthBtn');
   const pedidosTbody = $('pedidosTbody'), pedidosEmpty = $('pedidosEmpty'), pedidosSub = $('pedidosSub');
+  
   function escHtml(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
   function fmtMoney(n) { return 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   function formatDate(date) { const d = new Date(date); return d.toLocaleDateString('pt-BR'); }
@@ -4316,11 +4498,18 @@ document.addEventListener('DOMContentLoaded', () => {
     doc.text('Pedido Nº: ' + pedido.numero, margin, 40);
     const dt = new Date(pedido.data);
     doc.text('Data: ' + dt.toLocaleDateString('pt-BR'), pageW - margin, 40, { align: 'right' });
-    doc.setFillColor(244, 246, 249); doc.roundedRect(margin, 46, usableW, 18, 2, 2, 'F');
+    doc.setFillColor(244, 246, 249); doc.roundedRect(margin, 46, usableW, 32, 2, 2, 'F');
     doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(22, 32, 44);
     doc.text('Cliente: ' + (pedido.userNome || '-'), margin + 5, 53);
-    doc.text('Telefone: ' + (pedido.fone || '-'), margin + 5, 60);
-    let y = 76;
+    doc.text('CPF: ' + (pedido.cpf || '-'), margin + 5, 60);
+    doc.text('Telefone: ' + (pedido.fone || '-'), margin + 5, 67);
+    doc.text('Endereço: ' + (pedido.end || '-'), margin + 5, 74);
+    
+    if (pedido.autorizadoPor) {
+        doc.text('Autorizado por: ' + pedido.autorizadoPor, margin + 5, 81);
+    }
+    
+    let y = pedido.autorizadoPor ? 91 : 84;
     const colX = [margin + 2, margin + 32, margin + 62, margin + 92, margin + 110, margin + 150];
     const rowH = 7;
     doc.setFillColor(15, 35, 56); doc.rect(margin, y, usableW, 8, 'F');
@@ -4352,6 +4541,7 @@ document.addEventListener('DOMContentLoaded', () => {
     doc.text('Paizão Metais · Sistema de Consulta Técnica · Documento gerado automaticamente', pageW / 2, pageH - 10, { align: 'center' });
     return doc.output('blob');
   }
+  window.__gerarPDFBlobFromPedido = gerarPDFBlobFromPedido;
   function openPedidoPDF(numero) {
     const pedido = pedidosSalvos.find(p => p.numero === numero);
     if (!pedido) { alert('Pedido não encontrado.'); return; }
@@ -4408,18 +4598,50 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   function getUserInfo() {
+    const cpf = document.getElementById('cartCpf')?.value.replace(/\D/g, '');
+    if (cpf) {
+        try {
+            const clientes = JSON.parse(localStorage.getItem('paizao_clientes') || '[]');
+            const cliente = clientes.find(c => String(c.cpf || '').replace(/\D/g, '') === cpf);
+            if (cliente) {
+                return { 
+                    nome: cliente.nome, 
+                    fone: cliente.fone || '',
+                    cpf: cliente.cpf || '',
+                    end: cliente.end || ''
+                };
+            }
+        } catch(e){}
+    }
     const userName = window.currentUserNome || window.currentUser;
-    if (!userName) return { nome: 'Usuário não logado', fone: '' };
+    if (!userName) return { nome: 'Usuário não logado', fone: '', cpf: '', end: '' };
     try {
       const clientes = JSON.parse(localStorage.getItem('paizao_clientes') || '[]');
       if (Array.isArray(clientes)) {
         const cliente = clientes.find(c => c.nome && c.nome.toLowerCase() === userName.toLowerCase());
-        if (cliente) { return { nome: cliente.nome, fone: cliente.fone || '' }; }
+        if (cliente) { return { nome: cliente.nome, fone: cliente.fone || '', cpf: cliente.cpf || '', end: cliente.end || '' }; }
       }
     } catch(e) { }
-    return { nome: userName, fone: '' };
+    return { nome: userName, fone: '', cpf: '', end: '' };
   }
   function updateCartUserInfo() { }
+  window.recalculateCartPrices = function() {
+      const disc = getDiscountForUser();
+      cartItems.forEach(item => {
+          const catalisador = DATA.find(d => d.ref === item.ref);
+          if (catalisador) {
+              const s = somaPedras(catalisador);
+              const comb = Object.assign({}, catalisador, s);
+              comb._orig = catalisador;
+              const c = calcItem(comb);
+              const baseUnit = c.rspeca;
+              item.unitario = baseUnit * (1 - disc);
+              item.total = item.quantidade * item.unitario;
+          }
+      });
+      saveCart();
+      renderCart();
+  };
   window.addToCart = function(item) {
     if (!window.currentUser) { alert('Você precisa estar logado para adicionar itens ao carrinho.'); return; }
     const userInfo = getUserInfo();
@@ -4510,7 +4732,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let numeroPedido; try { numeroPedido = gerarNumeroPedido(); } catch (e) { alert('Erro ao gerar número do pedido: ' + e.message); return; }
     const pedido = {
       numero: numeroPedido, data: new Date().toISOString(), user: window.currentUser || '',
-      userNome: userInfo.nome, fone: userInfo.fone,
+      userNome: userInfo.nome, fone: userInfo.fone, cpf: userInfo.cpf || '', end: userInfo.end || '',
       itens: filteredItems.map(i => ({ codigos: [...i.codigos], quantidade: i.quantidade, unitario: i.unitario, total: i.total })),
       total: totalGeral
     };
@@ -4527,14 +4749,132 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cartFilterDataFim) cartFilterDataFim.value = '';
     renderCart();
   }
+  
+  function autorizarCarrinho() {
+    if (cartItems.length === 0) { alert('Carrinho vazio.'); return; }
+    if (!confirm('Autorizar este carrinho e mover para o Histórico de Compra?')) return;
+
+    const userInfo = getUserInfo();
+    let totalGeral = 0; cartItems.forEach(item => totalGeral += item.total || 0);
+    let numeroPedido; try { numeroPedido = gerarNumeroPedido(); } catch (e) { alert('Erro: ' + e.message); return; }
+    const autorizador = window.currentUserNome || window.currentUser || 'SISTEMA';
+
+    const pedido = {
+      numero: numeroPedido, data: new Date().toISOString(), user: window.currentUser || '',
+      userNome: userInfo.nome, fone: userInfo.fone, cpf: userInfo.cpf || '', end: userInfo.end || '',
+      itens: cartItems.map(i => ({ codigos: [...i.codigos], quantidade: i.quantidade, unitario: i.unitario, total: i.total })),
+      total: totalGeral,
+      autorizadoPor: autorizador,
+      dataAutorizacao: new Date().toISOString(),
+      _tipoRegistro: 'carrinho'
+    };
+
+    try {
+      const blob = gerarPDFBlobFromPedido(pedido);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'pedido_' + numeroPedido + '.pdf';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch(e){ console.warn('PDF error', e); }
+
+    let historico = [];
+    try { historico = JSON.parse(localStorage.getItem('paizao_historico_compra') || '[]'); } catch(_){}
+    historico.unshift(pedido);
+    try { localStorage.setItem('paizao_historico_compra', JSON.stringify(historico)); } catch(_){}
+
+    cartItems.length = 0;
+    saveCart();
+    renderCart();
+    if (window.auditLog) window.auditLog('CARRINHO_AUTORIZADO', 'Pedido ' + numeroPedido + ' autorizado por ' + autorizador);
+    alert('Carrinho autorizado e movido para o Histórico de Compra!');
+    if (window.renderHistorico) window.renderHistorico();
+  }
+
   cartFilterBtn.addEventListener('click', renderCart);
   cartFilterLimparBtn.addEventListener('click', () => {
     cartFilterNome.value = ''; cartFilterFone.value = ''; cartFilterDataInicio.value = ''; cartFilterDataFim.value = '';
     renderCart();
   });
   cartPdfBtn.addEventListener('click', gerarPDF);
+  cartAuthBtn.addEventListener('click', autorizarCarrinho);
   renderCart(); renderPedidos();
   window.updateCartUserInfo = updateCartUserInfo;
+})();
+</script>
+
+<script>
+(function historicoCompraSystem(){
+  'use strict';
+  const LS_KEY_HIST = 'paizao_historico_compra';
+  const $ = id => document.getElementById(id);
+  const histTbody = $('histTbody'), histEmpty = $('histEmpty'), histCount = $('histCount');
+
+  function escHtml(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+  function render() {
+    let historico = [];
+    try { historico = JSON.parse(localStorage.getItem(LS_KEY_HIST) || '[]'); } catch(e){}
+    histCount.textContent = historico.length + ' registro' + (historico.length === 1 ? '' : 's');
+    if (historico.length === 0) {
+      histTbody.innerHTML = '';
+      histEmpty.classList.remove('hidden');
+      return;
+    }
+    histEmpty.classList.add('hidden');
+    histTbody.innerHTML = historico.map((h, i) => {
+      const d = new Date(h.dataAutorizacao || h.data);
+      const dataStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+      const cliente = h.nome || h.userNome || '—';
+      const valor = h.rs || h.total || 0;
+      const tipo = h._tipoRegistro === 'cv_po' ? (h.tipo === 'VENDA' ? 'Venda Pó' : 'Compra Pó') : 'Carrinho';
+      return `<tr>
+        <td>${dataStr}</td>
+        <td>${tipo}</td>
+        <td>${escHtml(cliente)}</td>
+        <td style="text-align:right; font-weight:700;color:#15803d">R$ ${Number(valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+        <td>${escHtml(h.autorizadoPor || '—')}</td>
+        <td style="text-align:center">
+          <button class="row-edit" data-hist-pdf="${i}" title="Abrir PDF">📄</button>
+          <button class="row-edit" data-hist-del="${i}" title="Excluir" style="background:#fee2e2;color:#b91c1c;border-color:#fecaca">🗑</button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    histTbody.querySelectorAll('[data-hist-pdf]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const h = historico[parseInt(btn.dataset.histPdf, 10)];
+        if (!h) return;
+        if (h._tipoRegistro === 'cv_po') {
+          if (window.__openCvPDFObject) window.__openCvPDFObject(h);
+        } else if (h._tipoRegistro === 'carrinho') {
+          if (window.__gerarPDFBlobFromPedido) {
+            try {
+              const blob = window.__gerarPDFBlobFromPedido(h);
+              const url = URL.createObjectURL(blob);
+              window.open(url, '_blank');
+            } catch(e) { alert('Erro ao gerar PDF.'); }
+          }
+        }
+      });
+    });
+
+    histTbody.querySelectorAll('[data-hist-del]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        if (!confirm('Excluir este registro do histórico?')) return;
+        historico.splice(parseInt(btn.dataset.histDel, 10), 1);
+        localStorage.setItem(LS_KEY_HIST, JSON.stringify(historico));
+        render();
+      });
+    });
+  }
+
+  window.renderHistorico = render;
+  document.addEventListener('click', e => {
+    const tab = e.target.closest('.tab[data-tab="historicocompra"]');
+    if (tab) setTimeout(render, 60);
+  });
+  render();
 })();
 </script>
 
@@ -4656,6 +4996,68 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .catch(function(e){ console.warn('[SW] register:', e && e.message); });
   });
+})();
+</script>
+
+<script>
+(function autoFillCpfSystem(){
+  'use strict';
+  
+  window.overrideUserType = '';
+
+  window.autoFillFromCpf = function(cpfInputId, prefix) {
+    const cpfInput = document.getElementById(cpfInputId);
+    if (!cpfInput) return;
+    const cpfVal = cpfInput.value.replace(/\D/g, '');
+    
+    if (!cpfVal) {
+        window.overrideUserType = '';
+        if (prefix === 'cv' && typeof window.updateCvTab === 'function') window.updateCvTab();
+        if (prefix === 'cart' && typeof window.recalculateCartPrices === 'function') window.recalculateCartPrices();
+        return;
+    }
+
+    try {
+      const clientes = JSON.parse(localStorage.getItem('paizao_clientes') || '[]');
+      const cliente = clientes.find(c => String(c.cpf || '').replace(/\D/g, '') === cpfVal);
+      
+      if (cliente) {
+        const fields = ['Nome', 'Fone', 'End', 'Bairro', 'Cidade', 'Uf', 'Rg', 'Banco', 'Agencia', 'Conta', 'Pix'];
+        fields.forEach(f => {
+            const el = document.getElementById(prefix + f);
+            if (el) {
+                const key = f.toLowerCase();
+                el.value = cliente[key] || '';
+            }
+        });
+        
+        const users = JSON.parse(localStorage.getItem('paizao_usuarios') || '{}');
+        let foundUserType = '';
+        for (const k in users) {
+          if (users[k].nome && users[k].nome.toLowerCase() === cliente.nome.toLowerCase()) {
+              foundUserType = users[k].type;
+              break;
+          }
+        }
+        window.overrideUserType = foundUserType;
+        
+        if (prefix === 'cv' && typeof window.updateCvTab === 'function') {
+            window.updateCvTab();
+        } else if (prefix === 'cart' && typeof window.recalculateCartPrices === 'function') {
+            window.recalculateCartPrices();
+        }
+      } else {
+          window.overrideUserType = '';
+          if (prefix === 'cv' && typeof window.updateCvTab === 'function') window.updateCvTab();
+          if (prefix === 'cart' && typeof window.recalculateCartPrices === 'function') window.recalculateCartPrices();
+      }
+    } catch (e) {
+      console.error('Erro ao buscar CPF', e);
+    }
+  };
+
+  document.getElementById('cvCpf')?.addEventListener('blur', () => window.autoFillFromCpf('cvCpf', 'cv'));
+  document.getElementById('cartCpf')?.addEventListener('blur', () => window.autoFillFromCpf('cartCpf', 'cart'));
 })();
 </script>
 
